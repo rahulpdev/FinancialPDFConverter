@@ -2,7 +2,7 @@
 
 **Prepared By:** Rahul Parmar  
 **Date:** 2025-11-25  
-**Version:** 1.1
+**Version:** 1.2
 
 ## Introduction 🧭
 
@@ -77,7 +77,7 @@ _This blueprint is the initial definition for the standalone software project "*
       - Structured path → normalised rows stored in `document_rows`.
       - Semantic path → text chunks + embeddings stored in `documents`.
     - The system must be API-callable and support both sandbox and production-style endpoints, even in pilot form.
-    - The system must not permanently store PDFs; instead it should store structured outputs and rich metadata (e.g. hashes, digital signatures, XMP metadata, OCR mismatch logs) subject to a defined retention policy (e.g. 10 days). Metadata can be stored permanently.
+    - The system must not store PDFs; instead it should store structured outputs and rich metadata (e.g. hashes, digital signatures, XMP metadata, OCR mismatch logs). Structured output data is subject to a defined retention policy (e.g. 10 days). Metadata can be stored permanently.
     - EU/GDPR-grade compliance and enterprise security certifications are explicitly out of scope for this pilot, but standard good practices (HTTPS, basic access control, least-privilege data access) are still required.
     - Single-builder constraint: the entire system must be buildable and maintainable by one engineer.
 - **2.3. Client Assumptions:**
@@ -255,8 +255,10 @@ _Task: Review this blueprint thoroughly and complete this section._
   | …   |                       |                                       |                    |                |                                               |       |        |
 
 - **5.3. Product Management Team:** 📐
+
   - Identify any ambiguities, gaps, or assumptions related to Sections 1-4 that require **client clarification**.
   - Compile these questions in a list in this section. Start each question with "Q: ".
+
 - **5.4. Engineering Team:** 🏗️
 
   - Identify any technical ambiguities, feasibility concerns, or assumptions related to Sections 2-5 that require **client clarification OR internal decision**.
