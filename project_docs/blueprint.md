@@ -238,25 +238,26 @@ _Task: Review this blueprint thoroughly and complete this section._
 
   - These NFRs are intentionally scoped for a pilot but should be robust enough to form the foundation of a future production platform.
 
-    | #   | NFR Category               | Quantitative Target / Requirement                                                                                                           | Owner | Status |
-    | --- | -------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- | ----- | ------ |
-    | 1   | Performance – API          | Ingestion API: P95 response time < **500 ms** for requests up to **20 MB**; API must immediately enqueue extraction and return document ID. | ENG   | Open   |
-    | 2   | Performance – Pipeline     | For PDFs ≤ **20 pages**, 95% of extractions complete within **5 minutes** end-to-end under expected pilot load (≤ 200 PDFs/day).            | ENG   | Open   |
-    | 3   | Accuracy & Quality         | Achieve **≥95% field-level extraction accuracy** on the 30 real-world pilot PDFs compared to a human benchmark.                             | ENG   | Open   |
-    | 4   | Data Retention & Storage   | Structured outputs retained for **max 10 days**. PDFs must never be persisted to durable storage. Metadata may be stored permanently.       | ENG   | Open   |
-    | 5   | Security – Transport       | All external access over **HTTPS** with modern TLS (1.2+). No unauthenticated endpoints.                                                    | ENG   | Open   |
-    | 6   | Security – Data Access     | **Row-Level Security (RLS)** and soft deletes (`deleted_at`). No cross-org access to records.                                               | ENG   | Open   |
-    | 7   | Security – Secrets         | All secrets stored in environment variables or a managed secrets store; none committed to source control.                                   | ENG   | Open   |
-    | 8   | Multi-User Isolation       | All data, logs, and processing paths must be strictly scoped by organisation/user ID.                                                       | ENG   | Open   |
-    | 9   | Structured Storage / RAG   | Normalised rows stored in `document_rows`; embeddings & chunks stored in `documents`. Schema must support future AML/credit/DCF modules.    | ENG   | Open   |
-    | 10  | Numerical Precision        | All financial amounts use **decimal/fixed-precision types** (no binary floats).                                                             | ENG   | Open   |
-    | 11  | Reliability & Availability | Target **99.0% uptime** during UK business hours (08:00–18:00). Planned maintenance outside these hours.                                    | ENG   | Open   |
-    | 12  | Observability – Logging    | Structured logs for each pipeline stage, including correlation IDs, timing, and error codes.                                                | ENG   | Open   |
-    | 13  | Observability – Metrics    | Metrics for: PDFs processed, stage timings, success/failure rates, retention deletions.                                                     | ENG   | Open   |
-    | 14  | Auditability & QA          | Minimal audit trail (hash, metadata, quality score, error summary) retained for **90 days**, even after structured-data deletion.           | ENG   | Open   |
-    | 15  | Maintainability            | Clear modular boundaries; a single engineer must understand/extend each module within **1–2 days** using documentation.                     | ENG   | Open   |
-    | 16  | Extensibility              | Adding new doc types must not require changes to core ingestion/auth layers—only extraction + schema mapping layers.                        | ENG   | Open   |
-    | 17  | Deployment & Recovery      | Automated deployment with rollback capability within **30 minutes**; DB backups with ≥ **7-day** point-in-time recovery.                    | ENG   | Open   |
+    | #   | NFR Category               | Quantitative Target / Requirement                                                                                                                    | Owner | Status |
+    | --- | -------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- | ----- | ------ |
+    | 1   | Performance – API          | Ingestion API: P95 response time < **500 ms** for requests up to **20 MB**; API must immediately enqueue extraction and return document ID.          | ENG   | Open   |
+    | 2   | Performance – Pipeline     | For PDFs ≤ **20 pages**, 95% of extractions complete within **5 minutes** end-to-end under expected pilot load (≤ 200 PDFs/day).                     | ENG   | Open   |
+    | 3   | Accuracy & Quality         | Achieve **≥95% field-level extraction accuracy** on the 30 real-world pilot PDFs compared to a human benchmark.                                      | ENG   | Open   |
+    | 4   | Data Retention & Storage   | Structured outputs retained for **max 10 days**. PDFs must never be persisted to durable storage. Metadata may be stored permanently.                | ENG   | Open   |
+    | 5   | Security – Transport       | All external access over **HTTPS** with modern TLS (1.2+). No unauthenticated endpoints.                                                             | ENG   | Open   |
+    | 6   | Security – Data Access     | **Row-Level Security (RLS)** and soft deletes (`deleted_at`). No cross-org access to records.                                                        | ENG   | Open   |
+    | 7   | Security – Secrets         | All secrets stored in environment variables or a managed secrets store; none committed to source control.                                            | ENG   | Open   |
+    | 8   | Multi-User Isolation       | All data, logs, and processing paths must be strictly scoped by organisation/user ID.                                                                | ENG   | Open   |
+    | 9   | Structured Storage / RAG   | Normalised rows stored in `document_rows`; embeddings & chunks stored in `documents`. Schema must support future AML/credit/DCF modules.             | ENG   | Open   |
+    | 10  | Numerical Precision        | All financial amounts use **decimal/fixed-precision types** (no binary floats).                                                                      | ENG   | Open   |
+    | 11  | Reliability & Availability | Target **99.0% uptime** during UK business hours (08:00–18:00). Planned maintenance outside these hours.                                             | ENG   | Open   |
+    | 12  | Observability – Logging    | Structured logs for each pipeline stage, including correlation IDs, timing, and error codes.                                                         | ENG   | Open   |
+    | 13  | Observability – Metrics    | Metrics for: PDFs processed, stage timings, success/failure rates, retention deletions.                                                              | ENG   | Open   |
+    | 14  | Auditability & QA          | Minimal audit trail (hash, metadata, quality score, error summary) retained for **90 days**, even after structured-data deletion.                    | ENG   | Open   |
+    | 15  | Maintainability            | Clear modular boundaries; a single engineer must understand/extend each module within **1–2 days** using documentation.                              | ENG   | Open   |
+    | 16  | Extensibility              | Adding new doc types must not require changes to core ingestion/auth layers—only extraction + schema mapping layers.                                 | ENG   | Open   |
+    | 17  | Deployment & Recovery      | Automated deployment with rollback capability within **30 minutes**; DB backups with ≥ **7-day** point-in-time recovery.                             | ENG   | Open   |
+    | 18  | Testing                    | Maintain a permanent, curated set of regression-test fixtures (samples PDFs + JSON outputs) stored outside production tables and retention policies. | ENG   | Open   |
 
 - **5.2. Dependency-Risk Register** ⚠️
 
@@ -313,17 +314,14 @@ _Task: Review this blueprint thoroughly and complete this section._
 
 - **5.5. Explicit Assumptions & Known Dependencies**
   - ❓ Q: What assumptions or dependencies are we making that could affect delivery, scope, or performance?
-  - ✅ A: Use a clear bulleted or numbered list: - e.g.,
+  - ✅ A:
     1. **Pilot document supply:** We assume pilot organisations will provide at least **30 real, varied PDFs** (mix of accounts and bank statements) early enough in the project to support extraction tuning and QA.
-    2. **Tech stack alignment:** We assume a Python-based backend (e.g. FastAPI), Supabase/PostgreSQL for storage, and a simple web portal are acceptable to the client and align with their internal capabilities.
-    3. **Third-party services:** We assume continued access to chosen third-party services (Supabase, hosting provider, embedding API if used) under current free or low-cost usage limits.
-    4. **No long-term PDF storage:** We assume the “no PDF storage” requirement is firm and that retaining structured data + metadata is sufficient for the client’s risk/compliance needs.
-    5. **Numerical precision:** We assume downstream consumers expect **numerically stable, repeatable financial figures**, and will prefer decimal/fixed-precision values over binary floating-point approximations.
-    6. **Future feature alignment:** We assume future modules (AML rules, credit spreading, projections) will reuse the same dual-path RAG architecture and normalised schemas, so we must avoid bespoke, one-off schemas in the MVP.
-    7. **Single-builder capacity:** We assume one engineer can deliver the MVP within the agreed timeline if scope is contained to the features in Section 3.1 and we do not add substantial extra UI/UX complexity.
-    8. **Client integration capability:** We assume client engineering teams can integrate with a straightforward API using standard patterns (HTTPS, JSON, API keys) without requiring custom SDKs in this phase.
-    9. **Data residency:** We assume UK/EU hosting is sufficient and there is no strict requirement for data to remain within a specific country or on client-premises infrastructure for the pilot.
-    10. **Change control:** We assume any material changes to scope or NFRs (e.g., stricter latency SLOs, additional document types) will be managed through an explicit change-control process and reflected in the PRD.
+    2. **Third-party services:** We assume continued access to chosen third-party services (Supabase, hosting provider, embedding API if used) under current free or low-cost usage limits.
+    3. **No long-term PDF storage:** We assume the “no PDF storage” requirement is firm and that retaining structured data + metadata is sufficient for the client’s risk/compliance needs.
+    4. **Future feature alignment:** We assume future modules (AML rules, credit spreading, projections) will reuse the same dual-path RAG architecture and normalised schemas, so we must avoid bespoke, one-off schemas in the MVP.
+    5. **Client integration capability:** We assume client engineering teams can integrate with a straightforward API using standard patterns (HTTPS, JSON, API keys) without requiring custom SDKs in this phase.
+    6. **Data residency:** We assume UK/EU hosting is sufficient and there is no strict requirement for data to remain within a specific country or on client-premises infrastructure for the pilot.
+    7. **Change control:** We assume any material changes to scope or NFRs (e.g., stricter latency SLOs, additional document types) will be managed through an explicit change-control process and reflected in the PRD.
 
 _Definition of Done for Section 5: every row is either “Closed” or migrated into the PRD / Technical Architecture Document._
 
