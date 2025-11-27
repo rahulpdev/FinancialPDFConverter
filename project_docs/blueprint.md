@@ -1,8 +1,8 @@
 # Project Blueprint: Financial PDFs Converter
 
 **Prepared By:** Rahul Parmar  
-**Date:** 2025-11-25  
-**Version:** 1.2
+**Date:** 2025-11-27  
+**Version:** 1.3
 
 ## Introduction 🧭
 
@@ -372,10 +372,10 @@ _Immediate actions to move this project forward._
 
 - **9.1. Action Items:**
   - [x] 📋 Agency lead compiles Blueprint.
-  - [ ] 🧐 PM/Eng review Blueprint and compile questions.
-  - [ ] 📨 Client responds to Agency questions.
+  - [x] 🧐 PM/Eng review Blueprint and compile questions.
+  - [x] 📨 Client responds to Agency questions.
   - [ ] 📝 PM drafts PRD.
-  - [ ] ✅ Client approves Project Brief.
+  - [ ] ✅ Client approves PRD.
   - [ ] 📘 Eng drafts Technical Architecture Document.
 
 ---
