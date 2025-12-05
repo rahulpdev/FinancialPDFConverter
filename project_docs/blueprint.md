@@ -130,14 +130,14 @@ _This blueprint is the initial definition for the standalone software project "*
 
     5.  **Extraction Engine**
 
-        - Description & purpose: Extract cell-level data from detected tables and transform them into structured JSON.
+        - Description & purpose: Extract cell-level data from detected tables and transform them into structured JSON and create an operation record in the `transactions`-style table for every extraction run.
         - Inputs: Detected table regions from the table detection module.
         - Outputs: Semi-structured extraction payloads (JSON) with rows, columns reflecting page layout and metadata; per-field confidence scores.
         - Edge cases: Inconsistent headers, merged cells, OCR uncertainty, partially unreadable tables.
 
     6.  **Normalization & Schema Mapping**
 
-        - Description & purpose: Transform extracted data into consistent schemas suitable for downstream use (e.g. standardised field names, date formats, currency normalisation at the metadata level).
+        - Description & purpose: Transform extracted data into consistent, canonical schemas per PDF document family (e.g. company accounts, bank statements), suitable for downstream use (e.g. standardised field names, date formats, currency normalisation at the metadata level).
         - Inputs: Extraction payloads from the extraction engine, including document metadata.
         - Outputs: Normalised JSON datasets for financial statements and bank transactions, including mapping tables and data dictionaries.
         - Edge cases: Unknown or custom line item labels, mixed currencies within a document, missing or misaligned column headers, ambiguous dates.
@@ -165,10 +165,10 @@ _This blueprint is the initial definition for the standalone software project "*
 
     10. **Pilot Administration & Usage Reporting (Lightweight)**
 
-    - Description & purpose: Provide the project owner with visibility into pilot usage to evaluate success metrics performance and commercial potential.
-    - Inputs: System logs, processing records, and database table data.
-    - Outputs: On-demand SQL queries or CSV downloads sumamrising key metrics, backed by a dedicated `transactions`-style table that records extraction operations and virtual token usage.
-    - Edge cases: Partial data due to log rotation or retention, or inconsistent clocks between systems.
+        - Description & purpose: Provide the project owner with visibility into pilot usage to evaluate success metrics performance and commercial potential.
+        - Inputs: System logs, processing records, and database table data.
+        - Outputs: On-demand SQL queries or CSV downloads summarising key metrics, backed by a dedicated `transactions`-style table that records extraction operations and virtual token usage.
+        - Edge cases: Partial data due to log rotation or retention, or inconsistent clocks between systems.
 
 - **3.2. User Scenarios:**
 
@@ -257,7 +257,7 @@ _Task: Review this blueprint thoroughly and complete this section._
     | 14  | Observability – Metrics    | Metrics for: PDFs processed, stage timings, success/failure rates, retention deletions.                                                                                                                              | ENG   | Open   |
     | 15  | Maintainability            | Clear modular boundaries; a single engineer must understand/extend each module within **1–2 days** using documentation.                                                                                              | ENG   | Open   |
     | 16  | Extensibility              | Adding new doc types must not require changes to core ingestion/auth layers—only extraction + schema mapping layers.                                                                                                 | ENG   | Open   |
-    | 17  | Schema Contracts           | All inputs and outputs must validate against typed Pydantic models defined per PDF document family layers.                                                                                                           | ENG   | Open   |
+    | 17  | Schema Contracts           | All inputs and outputs must validate against canonical Pydantic schemas defined per PDF document family.                                                                                                             | ENG   | Open   |
     | 18  | Deployment & Recovery      | Automated deployment with rollback capability within **30 minutes**; DB backups with ≥ **7-day** point-in-time recovery.                                                                                             | ENG   | Open   |
     | 19  | Testing                    | Maintain a permanent, curated set of regression-test fixtures (samples PDFs + JSON outputs) stored outside production tables and retention policies.                                                                 | ENG   | Open   |
 
@@ -298,7 +298,7 @@ _Task: Review this blueprint thoroughly and complete this section._
 - **5.4. Engineering Team:** 🏗️
 
   - ❓ Q: Which **PDF and table extraction libraries** (and OCR engine, if any) will we standardise on for the MVP, and how will we encapsulate them behind an internal interface so they can be swapped later with minimal impact?
-  - ✅ A: A custom Module01-style extraction engine using `pypdf` for PDF parsing, `pdfplumber` and `camelot` for table detection and extraction, optional `pytesseract` OCR for scanned pages, and `pandas`/`python-dateutil`/`rapidfuzz` for normalisation, all wrapped behind a single `extract_tables` interface returning table JSON, metadata, and a quality score.
+  - ✅ A: A custom Module01-style five-stage extraction engine using `pypdf` for PDF parsing, `pdfplumber` and `camelot` for table detection and extraction, optional `pytesseract` OCR for scanned pages, and `pandas`/`python-dateutil`/`rapidfuzz` for normalisation, all wrapped behind a single `extract_tables` interface returning table JSON, metadata, and a quality score.
   - ❓ Q: What is the **target hosting environment** for the pilot (e.g. Supabase functions, containerised app on a low-cost PaaS, or client infrastructure), and how does that choice influence our logging, monitoring, and deployment strategy?
   - ✅ A: A containerised FastAPI service backed by a single Supabase project with structured JSON logs, simple health checks, basic metrics, and the same deployment and monitoring approach as Marconi’s system
   - ❓ Q: Which **embedding provider and vector storage mechanism** will we use initially (e.g. OpenAI embeddings + Postgres vector extension vs self-hosted model), and how will we abstract this to avoid lock-in?
@@ -339,7 +339,6 @@ _Task: Based on this project blueprint, develop the detailed **PRD**. Your focus
 - 📋 **Detailed Feature Specification**: Create detailed user stories/functional specs for _each_ item in Sec 3.1. Define clear, testable acceptance criteria suitable for QA and client sign-off using Sec 3.2, including the key data that must exist at the functional level. Document any integration requirements, including APIs, authentication, rate limits, and expected error-handling behaviours.
 - 🔁 **User Flows & UI/UX**: Document the detailed user flows (referencing Sec 3.3 if populated) and UI requirements (referencing client assets if provided). Specify error handling logic and UX.
 - 🧪 **Validation Notes**: For each user story, include a short description of how the feature will be evaluated in practice — what “success” looks like, what QA must explicitly test, and what must be observable in logs/metrics to confirm the system is working as expected.
-- 🔁 **User Flows & UI/UX:** Document the detailed user flows (referencing Sec 3.3 if populated) and UI requirements (referencing client assets if provided). Specify error handling logic and UX.
 - 🚧 **Scope Boundaries**: Clearly delineate boundaries based on Sec 4.1.
 - 🧩 **Assumptions & Dependencies**: Summarise any functional or business assumptions and relevant dependencies from Sec 2.3 and Sec 5 that must be captured in the PRD.
 - 🔒 **NFRs**: Incorporate relevant NFRs from Sec 2.2 and Sec 5.1 into feature specifications and acceptance criteria where applicable. Ensure any non-standard NFRs are clearly specified.
