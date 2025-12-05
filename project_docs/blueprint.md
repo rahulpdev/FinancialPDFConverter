@@ -1,8 +1,8 @@
 # Project Blueprint: Financial PDFs Converter
 
 **Prepared By:** Rahul Parmar  
-**Date:** 2025-11-27  
-**Version:** 1.3
+**Date:** 2025-12-05  
+**Version:** 1.4
 
 ## Introduction 🧭
 
@@ -78,6 +78,7 @@ _This blueprint is the initial definition for the standalone software project "*
       - Semantic path → text chunks + embeddings stored in `documents`.
     - The system must be API-callable and support both sandbox and production-style endpoints, even in pilot form.
     - The system must not store PDFs; instead it should store structured outputs and rich metadata (e.g. hashes, digital signatures, XMP metadata, OCR mismatch logs). Structured output data is subject to a defined retention policy (e.g. 10 days). Metadata can be stored permanently.
+    - A vertical-slice architectural pattern must be used across the application.
     - EU/GDPR-grade compliance and enterprise security certifications are explicitly out of scope for this pilot, but standard good practices (HTTPS, basic access control, least-privilege data access) are still required.
     - Single-builder constraint: the entire system must be buildable and maintainable by one engineer.
 - **2.3. Client Assumptions:**
@@ -256,25 +257,28 @@ _Task: Review this blueprint thoroughly and complete this section._
     | 14  | Observability – Metrics    | Metrics for: PDFs processed, stage timings, success/failure rates, retention deletions.                                                                                                                              | ENG   | Open   |
     | 15  | Maintainability            | Clear modular boundaries; a single engineer must understand/extend each module within **1–2 days** using documentation.                                                                                              | ENG   | Open   |
     | 16  | Extensibility              | Adding new doc types must not require changes to core ingestion/auth layers—only extraction + schema mapping layers.                                                                                                 | ENG   | Open   |
-    | 17  | Deployment & Recovery      | Automated deployment with rollback capability within **30 minutes**; DB backups with ≥ **7-day** point-in-time recovery.                                                                                             | ENG   | Open   |
-    | 18  | Testing                    | Maintain a permanent, curated set of regression-test fixtures (samples PDFs + JSON outputs) stored outside production tables and retention policies.                                                                 | ENG   | Open   |
+    | 17  | Schema Contracts           | All inputs and outputs must validate against typed Pydantic models defined per PDF document family layers.                                                                                                           | ENG   | Open   |
+    | 18  | Deployment & Recovery      | Automated deployment with rollback capability within **30 minutes**; DB backups with ≥ **7-day** point-in-time recovery.                                                                                             | ENG   | Open   |
+    | 19  | Testing                    | Maintain a permanent, curated set of regression-test fixtures (samples PDFs + JSON outputs) stored outside production tables and retention policies.                                                                 | ENG   | Open   |
 
 - **5.2. Dependency-Risk Register** ⚠️
 
-  | #   | Dependency / Pattern                                | Risk Description                                                                     | Likelihood (L/M/H) | Impact (L/M/H) | Mitigation / Fallback                                                                                                | Owner | Status |
-  | --- | --------------------------------------------------- | ------------------------------------------------------------------------------------ | ------------------ | -------------- | -------------------------------------------------------------------------------------------------------------------- | ----- | ------ |
-  | 1   | Real pilot PDFs from client organisations           | Pilot may provide too few or too-homogeneous PDFs, weakening accuracy validation.    | M                  | H              | Secure diverse samples early; supplement with anonymised public PDFs if allowed.                                     | PM    | Open   |
-  | 2   | Open-source PDF/table extraction libraries          | Libraries may perform poorly on messy or scanned PDFs.                               | M                  | H              | Prototype early; choose pluggable extraction layers; keep budget/time to swap libraries if needed.                   | ENG   | Open   |
-  | 3   | OCR engine for scanned statements                   | Poor scans or unusual fonts may reduce accuracy or break OCR.                        | M                  | H              | Set client expectations; add quality flags; log OCR confidence; allow manual re-run triggers.                        | ENG   | Open   |
-  | 4   | Supabase/PostgreSQL                                 | Free-tier limits or outages may affect ingestion, storage, or retention jobs.        | M                  | M              | Monitor quotas; keep schema portable; plan clean upgrade path to paid tier; add health checks.                       | ENG   | Open   |
-  | 5   | Embeddings provider                                 | Rate limits, cost changes, or API version changes could break embedding pipeline.    | M                  | M              | Abstract provider; store embeddings with model/version metadata; allow hot-swapping providers.                       | ENG   | Open   |
-  | 6   | Hosting platform / cloud infrastructure             | Low-cost PaaS may throttle CPU/RAM, causing slowdowns or timeouts.                   | M                  | M              | Right-size instances; set conservative timeouts; queue work; document scaling path.                                  | ENG   | Open   |
-  | 7   | Single-builder constraint                           | One engineer doing everything increases schedule and bus-factor risk.                | M                  | H              | High documentation discipline; tight milestones; ruthless scope control; schedule buffer.                            | PM    | Open   |
-  | 8   | No PDF storage (design constraint)                  | Debugging/training difficult without retaining PDFs.                                 | M                  | M              | Capture rich metadata + selective debug artefacts; permit ephemeral scratch storage (non-durable) only.              | ENG   | Open   |
-  | 9   | Token-style extraction logging (no billing)         | Early logging schema may not align with future billing/usage analytics.              | M                  | M              | Keep schema generic (operation type, docID, timestamps); avoid embedding pricing semantics; document extension path. | PM    | Open   |
-  | 10  | Dual-path RAG schema (`document_rows`, `documents`) | Schema may limit future AML/credit/DCF modules if too rigid.                         | M                  | H              | Use flexible metadata fields; map against likely future use cases; follow Marconi’s patterns precisely.              | ENG   | Open   |
-  | 11  | Client-side integration capacity                    | Client engineering teams may struggle to integrate APIs during pilot.                | M                  | M              | Provide clear API docs, Postman collection; allow portal-based fallback for manual usage.                            | PM    | Open   |
-  | 12  | Retention & deletion jobs                           | Misconfigured jobs might delete structured data too early or fail to delete on time. | M                  | H              | Implement idempotent scheduled jobs; add alerts; test in staging with sample data; observe logs.                     | ENG   | Open   |
+  | #   | Dependency / Pattern                                | Risk Description                                                                      | Likelihood (L/M/H) | Impact (L/M/H) | Mitigation / Fallback                                                                                                | Owner | Status |
+  | --- | --------------------------------------------------- | ------------------------------------------------------------------------------------- | ------------------ | -------------- | -------------------------------------------------------------------------------------------------------------------- | ----- | ------ |
+  | 1   | Real pilot PDFs from client organisations           | Pilot may provide too few or too-homogeneous PDFs, weakening accuracy validation.     | M                  | H              | Secure diverse samples early; supplement with anonymised public PDFs if allowed.                                     | PM    | Open   |
+  | 2   | Open-source PDF/table extraction libraries          | Libraries may perform poorly on messy or scanned PDFs.                                | M                  | H              | Prototype early; choose pluggable extraction layers; keep budget/time to swap libraries if needed.                   | ENG   | Open   |
+  | 3   | OCR engine for scanned statements                   | Poor scans or unusual fonts may reduce accuracy or break OCR.                         | M                  | H              | Set client expectations; add quality flags; log OCR confidence; allow manual re-run triggers.                        | ENG   | Open   |
+  | 4   | Supabase/PostgreSQL                                 | Free-tier limits or outages may affect ingestion, storage, or retention jobs.         | M                  | M              | Monitor quotas; keep schema portable; plan clean upgrade path to paid tier; add health checks.                       | ENG   | Open   |
+  | 5   | Embeddings provider                                 | Rate limits, cost changes, or API version changes could break embedding pipeline.     | M                  | M              | Abstract provider; store embeddings with model/version metadata; allow hot-swapping providers.                       | ENG   | Open   |
+  | 6   | Hosting platform / cloud infrastructure             | Low-cost PaaS may throttle CPU/RAM, causing slowdowns or timeouts.                    | M                  | M              | Right-size instances; set conservative timeouts; queue work; document scaling path.                                  | ENG   | Open   |
+  | 7   | Single-builder constraint                           | One engineer doing everything increases schedule and bus-factor risk.                 | M                  | H              | High documentation discipline; tight milestones; ruthless scope control; schedule buffer.                            | PM    | Open   |
+  | 8   | No PDF storage (design constraint)                  | Debugging/training difficult without retaining PDFs.                                  | M                  | M              | Capture rich metadata + selective debug artefacts; permit ephemeral scratch storage (non-durable) only.              | ENG   | Open   |
+  | 9   | Token-style extraction logging (no billing)         | Early logging schema may not align with future billing/usage analytics.               | M                  | M              | Keep schema generic (operation type, docID, timestamps); avoid embedding pricing semantics; document extension path. | PM    | Open   |
+  | 10  | Dual-path RAG schema (`document_rows`, `documents`) | Schema may limit future AML/credit/DCF modules if too rigid.                          | M                  | H              | Use flexible metadata fields; map against likely future use cases; follow Marconi’s patterns precisely.              | ENG   | Open   |
+  | 11  | Client-side integration capacity                    | Client engineering teams may struggle to integrate APIs during pilot.                 | M                  | M              | Provide clear API docs, Postman collection; allow portal-based fallback for manual usage.                            | PM    | Open   |
+  | 12  | Retention & deletion jobs                           | Misconfigured jobs might delete structured data too early or fail to delete on time.  | M                  | H              | Implement idempotent scheduled jobs; add alerts; test in staging with sample data; observe logs.                     | ENG   | Open   |
+  | 13  | In-memory queue                                     | Queue state may be lost or jobs may stall after process restarts.                     | M                  | H              | Persist queue metadata and reconcile stale jobs on startup.                                                          | ENG   | Open   |
+  | 14  | Dual-path RAG ingestion                             | Structured rows and semantic chunks may fall out of sync if one ingestion path fails. | M                  | M              | Enforce atomic ingestion and validate consistency during write.                                                      | ENG   | Open   |
 
 - **5.3. Product Management Team:** 📐
 
@@ -332,26 +336,29 @@ _Task: Based on this project blueprint, develop the detailed **PRD**. Your focus
 
 - 🎯 **Problem Statement & Goals**: Define the core problem this product or feature solves and translate Sec 1 objectives into specific, measurable goals, and non-goals, in alignment with the success metrics.
 - 👥 **Target Users & Personas**: Describe primary user types and scenarios (derived from Sec 1.4 and Sec 3) to anchor user stories in real workflows and motivations.
-- 📋 **Detailed Feature Specification:** Create detailed user stories/functional specs for _each_ item in Sec 3.1. Define clear, testable acceptance criteria suitable for QA and client sign-off using Sec 3.2, including the key data that must exist at the functional level.
+- 📋 **Detailed Feature Specification**: Create detailed user stories/functional specs for _each_ item in Sec 3.1. Define clear, testable acceptance criteria suitable for QA and client sign-off using Sec 3.2, including the key data that must exist at the functional level. Document any integration requirements, including APIs, authentication, rate limits, and expected error-handling behaviours.
+- 🔁 **User Flows & UI/UX**: Document the detailed user flows (referencing Sec 3.3 if populated) and UI requirements (referencing client assets if provided). Specify error handling logic and UX.
 - 🧪 **Validation Notes**: For each user story, include a short description of how the feature will be evaluated in practice — what “success” looks like, what QA must explicitly test, and what must be observable in logs/metrics to confirm the system is working as expected.
 - 🔁 **User Flows & UI/UX:** Document the detailed user flows (referencing Sec 3.3 if populated) and UI requirements (referencing client assets if provided). Specify error handling logic and UX.
-- 🚧 **Scope Boundaries:** Clearly delineate boundaries based on Sec 4.1.
-- 🔒 **NFRs:** Incorporate relevant NFRs from Sec 2.2 and Sec 5.1 into feature specifications and acceptance criteria where applicable. Ensure any non-standard NFRs are clearly specified.
-- 📊 **Success Metrics & Analytics**: Specify how success will be measured (analytics events, KPIs, dashboards). Link each metric to the quantified targets in Section 1.3 and include validation notes.
+- 🚧 **Scope Boundaries**: Clearly delineate boundaries based on Sec 4.1.
+- 🧩 **Assumptions & Dependencies**: Summarise any functional or business assumptions and relevant dependencies from Sec 2.3 and Sec 5 that must be captured in the PRD.
+- 🔒 **NFRs**: Incorporate relevant NFRs from Sec 2.2 and Sec 5.1 into feature specifications and acceptance criteria where applicable. Ensure any non-standard NFRs are clearly specified.
+- 📊 **Success Metrics & Analytics**: Specify how success will be measured (analytics events, KPIs, dashboards). Link each metric to the quantified targets in Section 1.3 and include validation notes. Include any non-analytics success criteria (functional, UX, or quality-based) that define what ‘good’ looks like from a user and business perspective.
 
 ---
 
 ## 7. Guidance for Engineering Team 🏗️
 
-_Task: Based on the detailed **PRD** from the PM team, create the **Technical Architecture Document**. Reference this project blueprint for context. Focus on the technical requirements for a production-ready, standalone application._
+_Task: Based on the detailed **PRD** from the PM team, create the **Technical Architecture Document**. Reference this project blueprint for context. Focus on the technical requirements for a production-ready, standalone application, including major design decisions, system behaviours, and environment considerations._
 
 - 🔍 **Detailed Feasibility Assessment:** Assess technical feasibility and implications of client constraints and specified features. Flag any gaps or trade-offs requiring client input before build.
-- 🧱 **Architecture & Technology Stack:** Propose a suitable architecture and justified technology stack for a standalone application meeting all requirements. Describe integrations, data flows, API boundaries and data models.
-- 🔒 **NFRs:** Detail _how_ the architecture and implementation plan will address the specified NFRs.
+- 🧱 **Architecture & Technology Stack:** Propose a suitable architecture and justified technology stack for a standalone application meeting all requirements. State the architectural pattern being used and present the high-level repository structure that implements it. Describe the main internal components and their responsibilities, external system integrations, data flows, API boundaries, and data models. Cite key external design docs, articles, or templates that materially influence the architecture, tech stack and tool design decisions.
+- 🔗 **Interface Contracts**: Document any interface contracts required for the system to function, including externally visible endpoints or operations, request/response structures, authentication requirements, and error-handling behaviours.
+- 🔒 **NFRs:** Detail _how_ the architecture and implementation plan will address the specified NFRs and state which security responsibilities the system architecture will handle and which are out of scope.
 - ⚠️ **Dependency-Risk:** Detail _how_ the architecture and implementation plan will mitigate dependency-risks.
 - 👁️ **Observability & Operations**: Outline suitable logging, tracing, and operational alerting required to support reliability, debugging, and production monitoring post-handover.
 - 🧪 **Testing & QA Strategy:** Define the testing strategy (unit, component, E2E, etc.) to ensure features meet acceptance criteria, NFRs are met, dependency-risk mitigations are effective, and the application meets delivery success metrics. Specify tools, environments, and automation scope.
-- 🛠️ **Implementation & Delivery:** Outline CI/CD pipelines, deployment environments, and code quality controls and specify the client handover artifacts.
+- 🛠️ **Implementation & Delivery:** Outline CI/CD pipelines, deployment environments, configuration surfaces (e.g., environment variables, configuration files, settings classes, feature flags), secrets management approach, and code quality controls. Specify client handover artifacts required for production-ready delivery, including the intended runtime topology (e.g. env vars, config files, container volumes, ports), deployment model, storage requirements, and any host-level or environment considerations necessary for correct operation.
 
 ---
 
@@ -360,7 +367,7 @@ _Task: Based on the detailed **PRD** from the PM team, create the **Technical Ar
 \*How _we_ measure the successful completion of _this_ project delivery\*.
 
 - **8.1. Core Delivery Metrics:**
-  - [ ] ✅ All features listed in Section 3.1 are implemented and demonstrably working per acceptance criteria defined in the Project Brief.
+  - [ ] ✅ All features listed in Section 3.1 are implemented and demonstrably working per acceptance criteria defined in the PRD.
   - [ ] 🧪 Software passes internal QA against defined acceptance criteria.
   - [ ] 🔒 Meets NFRs outlined in Sections 2 and 5 (to the extent specified or standard practice).
   - [ ] 🛰️ Dependency-Risk Register closed (all mitigations implemented & tested).
@@ -384,6 +391,6 @@ _Immediate actions to move this project forward._
 
 1.  🖊️ **Complete sections 1-4** based on initial understanding of client needs and the agreed scope.
 2.  👀 **PMs and Engineers review** this blueprint thoroughly and compile client and internal questions (in Sec 5).
-3.  🏗️ **PMs draft the detailed PRD**, incorporating clarifications needed and client responses (Guidance in Sec 7).
-4.  🧑‍💻 **Engineers review the PRD**, draft Technical Architecture Document (Guidance in Sec 8).
+3.  🏗️ **PMs draft the detailed PRD**, incorporating clarifications needed and client responses (Guidance in Sec 6).
+4.  🧑‍💻 **Engineers review the PRD**, draft Technical Architecture Document (Guidance in Sec 7).
 5.  📌 **Define and track Next Steps** (Sec 9).
