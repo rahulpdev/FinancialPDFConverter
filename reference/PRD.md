@@ -1,800 +1,452 @@
-# Financial PDFs Converter
+# Product Requirements Document
 
-Product Requirements Document
+Financial PDFs Converter
 
-**Version** 0.5  
-**Date** 2025-12-11  
-**Owner** Rahul Parmar  
-**Source documents** Project Blueprint v1.4, Marconi DCF PRP (benchmark)
+Prepared by Rahul Parmar  
+Date 2025-12-19  
+Version 1.1
 
----
+## 1 Context recap
 
-## 1 Overview
+Financial PDFs Converter is an API-first service, and minimal web portal, that ingests financial PDFs (company accounts and bank statements) and returns clean structured datasets, backed by a dual-path storage model that supports both exact queries and LLM-driven contextual search. The pilot validates accuracy, time savings, and integration feasibility while preserving a foundation for future modules.
 
-### 1.1 Problem statement
+## 2 Problem statement
 
-Operations and risk teams at fintechs and financial institutions receive company accounts and bank statement PDFs that must be converted into structured data for onboarding, periodic reviews, and credit decisions. Today this conversion is manual, slow, error-prone, and inconsistent across analysts, which limits throughput and undermines confidence in downstream risk and analytics workflows.
+Operations and risk teams manually re-key data from PDFs into spreadsheets or internal systems. This work is slow, error-prone, inconsistent, and hard to automate.
 
-The Financial PDFs Converter provides an API-first extraction service and minimal web portal that ingests financial PDFs and returns normalised structured datasets, backed by a dual-path storage model that supports both exact queries and LLM-driven contextual search. The initial pilot is focused on validating accuracy, speed, and usability rather than delivering a full production platform.
+## 3 Goals and non-goals
 
-### 1.2 Goals and success metrics
+### 3.1 Goals
 
-**Primary business goals**
+- G1 Process at least 30 real-world PDFs with at least 99% field extraction accuracy versus a human benchmark.
+- G2 Reduce average manual processing time per PDF by at least 50% for pilot users measured externally.
+- G3 Onboard at least 2 organisations who each process at least 5 PDFs through the system during the pilot.
+- G4 Produce at least 2 commercial signals such as an integration request or pricing discussion.
+- G5 Deliver a production-ready core five-stage extraction engine and API that can support future downstream modules without a re-architecture.
 
-1. Reduce manual effort and time required to convert financial PDFs into usable structured data.
+### 3.2 Non-goals
 
-2. Improve extraction accuracy and consistency relative to manual processes.
+- NG1 Billing, pricing, token deduction, or subscription management.
+- NG2 Advanced downstream analytics or modelling modules including DCF, ratio analysis, AML rules, projections, or Excel model generation.
+- NG3 Multi-tenant self-serve onboarding, SSO, granular RBAC, or complex account management.
+- NG4 Storage of original PDFs in durable storage.
+- NG5 Any open-source or alternative provider fallback for table extraction in the pilot.
+- NG6 Live progress bar for pilot processing.
+- NG7 Native mobile apps or heavy marketing website.
 
-3. Validate commercial interest in an API-first financial document extraction service.
+## 4 Users and personas
 
-4. Establish an architecture foundation that can support future KYC, AML, credit, and modelling products.
+### 4.1 Primary user
 
-**Pilot success metrics**
+Operations analysts at fintechs and financial services firms.
 
-- **G1 – Extraction accuracy**  
-  Process ≥30 real-world financial PDFs (accounts \+ bank statements) with **≥99% field-level extraction accuracy** versus a human benchmark.
+Needs \- Upload or submit PDFs and receive structured output quickly. \- Trust extraction quality without deep technical debugging.
 
-- **G2 – Time reduction**  
-  Achieve **≥50% reduction** in average manual processing time per PDF for pilot users, measured externally by client.
+### 4.2 Secondary users
 
-- **G3 – Pilot engagement**  
-  Onboard **≥2 organisations** that each process **≥5 PDFs** through the system during the pilot.
+Risk analysts consuming the output.
 
-- **G4 – Commercial signal**  
-  Capture **≥2 explicit commercial signals**, such as requests for pricing, integration workshops, or roadmap discussions.
+Needs \- Consistent canonical schema, reliable numeric precision and machine-usable structured data.
 
-- **G5 – Architecture readiness**  
-  Deliver an architecture (ingestion, extraction, API, storage, retention, integration points) that engineering judges as suitable to extend for downstream KYC, AML, credit underwriting, and DCF-style modules without full re-architecture.
+Internal engineering and data teams integrating the API.
 
-### 1.3 Non-goals and scope boundaries
+Needs \- Clear API contracts, stable auth pattern, predictable status transitions. \- Monitor extraction status and failure causes.
 
-The following are explicitly **out of scope** for this pilot and must not be implemented beyond minimal stubs where required:
+## 5 Scope boundaries
 
-- Pricing, billing, and subscription management (e.g. Stripe integration, token balances).
+### 5.1 In scope
 
-- Multi-tenant self-serve sign-up, complex roles/permissions, or SSO.
+- API ingestion and results retrieval.
+- Thin web portal for pilot upload and viewing over the same API.
+- Five-stage extraction engine implemented as five co-equal product features.
+- Canonical schema mapping for bank statements and company accounts.
+- Dual-path RAG storage of structured rows and semantic chunks.
+- Export formats JSON via API and CSV via portal.
+- Rich metadata capture and QA support.
+- Pilot administration reporting via database queries.
+- Retention job that deletes structured outputs after 10 days while retaining metadata permanently.
 
-- Rich downstream analytics (full AML rules engine, credit spreading, DCF/IPO models, Excel exporters).
+### 5.2 Out of scope
 
-- Long-term archival of PDFs or structured data beyond the **10-day** retention window.
+Items listed in non-goals plus anything excluded in the blueprint out-of-scope section.
 
-- Native mobile apps or heavy marketing website.
+## 6 Product requirements
 
-- Deep integrations into specific third-party platforms (core banking, CRMs, case-management), beyond generic API usage.
+### 6.1 Feature A - PDF ingestion and validation API
 
-Any requirement that materially conflicts with these non-goals must trigger a scope negotiation before implementation.
+**User story**
 
----
-
-## 2 Target users and personas
-
-### 2.1 Primary persona – Operations Analyst
-
-- **Role** Works in operations, onboarding, or middle office at a fintech or financial institution.
-
-- **Context** Receives customer financial documents (company accounts, management accounts, bank statements) during onboarding and reviews.
-
-- **Goals**
-
-  - Quickly convert PDFs into structured data in Excel or internal tools.
-
-  - Reduce manual copy/paste and re-keying work.
-
-  - Avoid mistakes that could lead to wrong credit decisions or compliance issues.
-
-- **Pain points today**
-
-  - Time-consuming scanning, manual extraction, and reconciliation.
-
-  - Inconsistent interpretations of line items between analysts.
-
-  - Fragile one-off scripts that break on new document formats.
-
-### 2.2 Secondary persona – Risk Analyst
-
-- **Role** Performs KYC, creditworthiness analysis, AML reviews, and risk monitoring using financial statements and transaction histories.
-
-- **Goals**
-
-  - Access reliable, machine-usable structured data for analysis and modelling.
-
-  - Trust that the same fields have the same meaning across different customers.
-
-  - Request schema tweaks as new use-cases emerge.
-
-- **Pain points today**
-
-  - Must validate or re-do manual extractions from operations teams.
-
-  - Difficult to automate rules/models when inputs are inconsistent.
-
-### 2.3 Secondary persona – Client Engineering Team
-
-- **Role** Engineers and data engineers at client organisations responsible for integrating the API into onboarding, risk, or analytics pipelines.
-
-- **Goals**
-
-  - Integrate a clearly documented, stable API using standard patterns (HTTPS, JSON, API keys).
-
-  - Avoid brittle SDKs or ad-hoc schema changes.
-
-  - Monitor extraction status and failure causes.
-
----
-
-## 3 Functional scope and user stories
-
-For each core feature this section defines user stories, functional behaviour, data requirements, acceptance criteria, and validation notes.
-
-### 3.1 Feature F1 – PDF Ingestion & Validation API
-
-**Description**  
-Authenticated API endpoint(s) that accept financial PDFs, validate them, register documents, and enqueue them for extraction.
-
-**Primary persona** Client Engineering Team.
-
-**Key user stories**
-
-- _US1.1_ As an engineer, I can POST a PDF (or URL) and metadata to an ingestion endpoint so that the system registers it and starts extraction.
-
-- _US1.2_ As an engineer, I receive a synchronous response with a document_id, initial status, and any validation warnings so I can track progress.
+As a client engineering team I want to submit a financial PDF file or URL and receive a document ID immediately so that I can integrate extraction into an existing onboarding or risk workflow.
 
 **Functional requirements**
 
-1. Provide an authenticated **POST /api/v1/documents** endpoint (exact path finalised in TAD) that accepts:
+- A1 Provide an authenticated POST endpoint to ingest PDFs.
+- A2 Accept either multipart upload or a file URL.
+- A3 Validate input \- File must be PDF \- Size must be within configured limit 20 MB for pilot API P95 target \- Reject encrypted or password-protected PDFs with a clear error
+- A4 Register a document record with \- organisation_id \- optional user_id nullable \- document_type_hint optional \- customer_reference optional \- source channel api or portal \- content hash \- environment sandbox or production \- size_bytes \- filename \- created timestamps
+- A5 Return response within P95 500 ms for valid requests \- document_id \- queued status \- validation warnings if any
+- A6 Enqueue the extraction job respecting per-organisation concurrency limits.
+- A7 Status transitions must be explicit: `queued`, `processing`, `succeeded`, `failed`, `expired`.
 
-   - Multipart PDF upload **or** a URL to a PDF.
+**Error handling**
 
-   - Minimum metadata fields: organisation_id (derived from auth), optional document_type hint ("company_accounts", "bank_statement"), optional customer_reference.
-
-   - Optional mode flag (sandbox / production).
-
-2. Enforce:
-
-   - File type is PDF (magic bytes check).
-
-   - File size ≤ 20 MB for guaranteed SLOs; reject inputs above hard limit (e.g. 30 MB) with clear error.
-
-3. Persist a document record with status received then queued and enqueue an extraction job respecting per-organisation concurrency limits.
-
-4. Implement basic validation warnings (e.g. suspected scan / low DPI, page count \> threshold) recorded against the document metadata.
-
-5. Never persist the raw PDF to durable storage beyond ephemeral processing as per retention rules.
-
-**Request / response (conceptual)**
-
-- **Request**
-
-  - POST /api/v1/documents
-
-  - Headers: Authorization: Bearer \<org-level-api-key\>
-
-  - Body: multipart/form-data containing file and JSON metadata.
-
-- **Success response (201)**
-
-  - JSON containing: document_id, status (queued), warnings (array), received_at timestamp, mode.
-
-- **Error responses**
-
-  - 400 for invalid input (non-PDF, file too large, missing file).
-
-  - 401/403 for auth failures.
-
-  - 429 if per-organisation concurrency/rate limits exceeded.
-
-  - 5xx for internal failures (with correlation ID).
+- A8 4xx errors for user faults \- 400 invalid file or size \- 401 or 403 auth failure \- 409 duplicate hash optional behaviour documented \- 429 per-organisation concurrency/rate limits exceeded
+- A9 5xx errors for system faults \- return generic message \- log internal diagnostics with correlation id
 
 **Acceptance criteria**
 
-- Given a valid PDF and API key, when I call the endpoint, then I receive a 201 response with a unique document_id, status \= queued, and my metadata echoed back.
+- A10 For a valid PDF and API key, the API responds within 500 ms P95 with a document_id and queued status.
+- A11 For non-PDF or encrypted PDF input the API returns 4xx with human-readable actionable guidance.
+- A12 Accepted documents create records in database with correct organisation_id and metadata.
+- A13 Per-organisation concurrency limits enforced (at most one active extraction per organisation), additional jobs queued.
+- A14 No original PDF is stored in durable storage.
 
-- Given an oversized or non-PDF file, when I call the endpoint, then I receive a 4xx response with a human-readable error message.
+Validation notes \- QA verifies response time and status transitions. \- Logs include request id, organisation_id, document_id, validation result, stage timings.
 
-- All accepted documents create records in the database with correct organisation_id, metadata, and timestamps.
+Analytics and metrics \- Event document_ingested and document_ingest_rejected with fields: organisation_id, channel, size_bytes, document_type_hint. \- Metric ingestion_p95_ms.
 
-- Per-organisation concurrency limits are enforced (at most one active extraction per organisation) and additional jobs are queued.
+### 6.2 Feature B - Pilot web portal upload
 
-- No original PDF is stored in durable storage; QA can verify by inspecting storage configuration and logs.
+**User story**
 
-**Validation & observability**
-
-- Logs show one ingestion log entry per request with correlation IDs and validation outcome.
-
-- Metrics expose count of ingested documents by organisation and mode, plus breakdown by validation result.
-
-- QA uses synthetic and real PDFs to test success and error branches.
-
----
-
-### 3.2 Feature F2 – PDF Ingestion via Web Portal
-
-**Description**  
-A minimal web interface that allows authenticated users to upload PDFs manually and see basic processing status.
-
-**Primary persona** Operations Analyst.
-
-**User stories**
-
-- _US2.1_ As an operations analyst, I can upload a PDF via a browser form so I can use the system without writing code.
-
-- _US2.2_ As an analyst, I see immediate confirmation that a file was received and whether it is being processed.
+As an operations analyst I want a simple portal to upload a PDF so that I can try the system without writing code.
 
 **Functional requirements**
 
-1. Provide a simple **Upload** page within the portal:
-
-   - File picker limited to PDFs with client-side size validation.
-
-   - Fields for document_type and optional customer_reference.
-
-   - Upload action and visible progress indicator.
-
-2. On submit:
-
-   - Call the same ingestion API as F1 using the organisation-level credentials.
-
-   - Show upload confirmation and a link or navigation to the Document History (F3).
-
-3. Show clear human-readable inline error messages for unsupported formats, size issues, or network failures.
+- B1 Provide minimal portal login.
+- B2 File picker limited to PDFs with client-side size validation.
+- B3 Portal upload calls the same ingestion API.
+- B4 Portal requires a document type tag selection.
+- B5 Portal displays upload confirmation, visible progress indicator and link or nav to Document History (Feature C).
+- B6 Portal displays human-readable inline error messages for unsupported formats, size issues, or network failures.
+- B7 Portal refresh behaviour \- if the user refreshes the page during processing, the client restarts the process from the beginning.
 
 **Acceptance criteria**
 
-- When an authenticated portal user uploads a valid PDF, the portal calls the ingestion API and shows a success message with document_id or equivalent.
+- B8 A user can upload a PDF and see latest status.
+- B9 Refresh during processing results in a restart on the client side, with a clear UI message.
 
-- Upload failures show a non-technical error message and a suggestion to retry or contact support.
+Validation notes \- QA tests refresh behaviour and verifies restart and messaging.
 
-- Portal enforces the same size/type constraints as the API.
+Analytics and metrics \- Event portal_upload_failure, portal_upload_started and portal_upload_completed \- Event logs include organisation, filename, outcome, timestamp
 
-**Validation & observability**
+### 6.3 Feature C - Portal document history and results viewer
 
-- Portal events are logged (user ID, organisation, filename, outcome).
+**User story**
 
-- QA tests uploads under normal and adverse network conditions and verifies behaviour.
-
----
-
-### 3.3 Feature F3 – Web Portal: Document History & Results Viewer
-
-**Description**  
-A portal view that lists recent documents, shows extraction status and quality score, and allows users to view HTML tables and download structured data.
-
-**Primary persona** Operations Analyst; secondary Risk Analyst.
-
-**User stories**
-
-- _US3.1_ As an analyst, I can see a list of my organisation’s recent documents, their statuses, and quality scores so I can monitor progress.
-
-- _US3.2_ As an analyst, I can click into a document to see extracted tables rendered as HTML and optionally download CSV.
+As a pilot user I want to see prior documents and view results so that I can review outputs and download data.
 
 **Functional requirements**
 
-1. Document list view:
-
-   - Columns: uploaded_at, customer_reference, document_type, status, quality_score, warnings indicator.
-
-   - Filters: status (all, queued, processing, success, failed), date range.
-
-   - Pagination appropriate to pilot scale.
-
-   - Empty state: show empty-state message and provide link to Upload page.
-
-2. Detail view for a document_id:
-
-   - Display key metadata.
-
-   - Render extracted tables as HTML (for at least the main statements / transaction tables).
-
-   - Provide a download button for CSV (see F8).
-
-3. Respect data retention: documents whose structured data has expired must be clearly indicated as expired with no data rendered or downloadable.
-
-4. Enforce organisation scoping and basic access control (no cross-org visibility).
-
-5. Unexpected errors (e.g. network failures, inaccessible records) show a human-readable message and correlation ID.
-
-6. Portal must meet WCAG 2.1 Level AA basics for forms, contrast, keyboard navigation, alt text, and semantic HTML.
+- C1 Show a list of documents for the logged-in organisation.
+- C2 Filter list by status.
+- C3 Pagination appropriate to pilot scale.
+- C4 Each list row shows \- file name or label \- document type \- created time \- status \- quality score badge
+- C5 Clicking a row shows \- human-readable HTML view of extracted tables \- download link for CSV
+- C6 If structured output expired \- show expired status \- explain outputs were deleted after 10 days \- keep metadata visible
+- C7 Unexpected errors (e.g. network failures, inaccessible records) show a human-readable message
+- C8 Portal must meet WCAG 2.1 Level AA basics for forms, contrast, keyboard navigation, alt text, and semantic HTML
 
 **Acceptance criteria**
 
-- After uploading PDFs and waiting for extraction, users see those documents appear in the history list with correct statuses.
+- C9 After uploading PDF and waiting for extraction, users see the document in the history list with correct status.
+- C10 For successful extractions, clicking a row shows rendered tables and provides working CSV downloads.
+- C11 Expired outputs are not accessible but metadata and status remain visible.
 
-- For successful extractions, clicking a row shows rendered tables and provides working CSV downloads.
+Validation notes \- QA tests expired states and org access control.
 
-- For documents beyond the retention window, the UI clearly indicates that data has been deleted per policy and disables downloads.
+Analytics and metrics \- Event portal_view_document, portal_download_csv and portal_download_csv_failed
 
-- Users can only see documents from their own organisation.
+### 6.4 Feature D - Input discovery and document registration (Extraction stage 1)
 
-**Validation & observability**
+**User story**
 
-- QA seeds test data and verifies that list filters, detail views, and retention behaviour work as expected.
-
-- Metrics include counts of viewed documents and download events for CSV.
-
----
-
-### 3.4 Feature F4 – Table Detection
-
-**Description**  
-Identify relevant table regions in PDFs (income statement, balance sheet, cash flow, bank transactions) prior to extraction.
-
-**User stories**
-
-- _US4.1_ As a system owner, I need the extractor to robustly identify financial tables in diverse PDFs so that downstream extraction is accurate.
+As the system I want to identify document properties and prepare an extraction run so that downstream stages receive consistent inputs.
 
 **Functional requirements**
 
-1. Implement a table-detection stage that, given a registered document and document-type hint, identifies candidate table regions (coordinates, page indices) across pages.
-
-2. Must support:
-
-   - Multi-page tables.
-
-   - Irregular or borderless tables.
-
-   - Scanned images (with optional OCR).
-
-3. Interface outputs a machine-readable representation (e.g. JSON) of detected tables and passes it into the extraction engine (F5).
-
-4. Capture per-table confidence scores and reasons for low confidence (e.g. noisy OCR) in metadata.
+- D1 Create an extraction run record.
+- D2 Capture document metadata \- hash \- digital signatures if present \- XMP metadata if present \- embedded JS flag if present \- PDF version \- page count \- suspected scan quality flags
+- D3 Determine processing plan \- document type from hint or heuristic \- page ranges
+- D4 Emit correlation id used across all stages.
 
 **Acceptance criteria**
 
-- For the pilot set of PDFs, relevant financial tables are detected such that downstream extraction achieves the global ≥99% field-level accuracy target.
+- D5 A run record exists in a transactions-style table before calling any extraction provider.
+- D6 Metadata fields populate when present and missing fields do not fail the run.
 
-- QA can inspect table-detection outputs in logs or debug views for a sample of PDFs.
+Validation notes \- QA verifies records and logs for stage boundaries.
 
-- For scanned or low-quality PDFs, table-detection logs include confidence metrics and warnings.
+Analytics and metrics \- Metric extraction_stage1_duration_ms, extraction_stage1_failure with failure_type, and extraction_stage1_document_type with fields: document_type, confidence, used_hint_bool.
 
-**Validation & observability**
+### 6.5 Feature E - Table detection (Extraction stage 2)
 
-- Logs record number of tables detected per document and per table type.
+**User story**
 
-- Metrics track detection failures and low-confidence counts.
-
----
-
-### 3.5 Feature F5 – Extraction Engine
-
-**Description**  
-Extract cell-level data from detected tables using LLMWhisperer Text Extraction Service as the primary table extraction mechanism.
-
-**User stories**
-
-- _US5.1_ As an engineer, I need a reusable extraction engine that can be tuned and extended for new document types without changing the ingestion surface.
+As the system I want to identify relevant table regions so that only relevant content is sent for extraction.
 
 **Functional requirements**
 
-1. Implement an extraction module that:
-
-   - Accepts table regions and PDF content.
-
-   - Invokes LLMWhisperer Text Extraction Service for table extraction.
-
-   - Produces semi-structured JSON payloads preserving row/column structure and metadata.
-
-2. For each extraction run, record an operation in a transactions\-style table including timings and outcome.
-
-3. Capture per-field confidence where supported and aggregate a quality score per document.
-
-4. Support retries for transient failures and mark documents as failed after configurable max attempts.
+- E1 Identify candidate table regions for \- income statement \- balance sheet \- cash flow \- bank transaction tables
+- E2 Support tables spanning pages.
+- E3 Support irregular or borderless tables.
+- E4 Produce a table map \- page number \- bounding boxes or selectors compatible with the extraction provider \- table id
+- E5 Log confidence metrics and warnings for scanned or low-quality PDFs.
 
 **Acceptance criteria**
 
-- For the pilot PDF set, the extraction engine produces structured outputs that, after normalisation (F6), meet the ≥99% accuracy target.
+- E6 For a known sample the stage outputs at least one candidate region per relevant statement table.
+- E7 QA can inspect table-detection outputs in logs or debug views for a sample of PDFs.
+- E8 For scanned or low-quality PDFs, table-detection logs include low confidence metrics.
 
-- All extraction runs create corresponding operation records with timestamps and statuses.
+Validation notes \- QA validates detection outputs on the golden dataset.
 
-- Failures are retried according to policy and surfaced in logs and portal views.
+Analytics and metrics \- Metric extraction_stage2_duration_ms and extraction_stage2_failure with failure_type.
 
-**Validation & observability**
+### 6.6 Feature F - LLMWhisperer table extraction (Extraction stage 3)
 
-- QA uses golden PDFs with human-labelled outputs to compare extracted data.
+**User story**
 
-- Metrics track extraction success/failure rates, latency per stage, and average quality scores.
-
----
-
-### 3.6 Feature F6 – Normalisation & Schema Mapping
-
-**Description**  
-Transform extraction outputs into canonical schemas per PDF family (company accounts, bank statements) using strongly typed Pydantic models as schema contracts.
-
-**User stories**
-
-- _US6.1_ As a risk analyst, I want consistent field names and formats regardless of document source so I can plug outputs into models with minimal mapping.
-
-- _US6.2_ As an engineer, I want schema contracts enforced centrally so future changes are controlled.
+As the system I want to extract structured table data using LLMWhisperer so that the pilot relies on a single primary extraction service.
 
 **Functional requirements**
 
-1. Define canonical Pydantic schemas for:
-
-   - Company accounts (e.g. income statement, balance sheet, cash flow sections by period).
-
-   - Bank statements (e.g. transactions with date, description, amount, currency, balance).
-
-2. Implement mapping logic from semi-structured extraction outputs into these schemas, including:
-
-   - Line item label normalisation.
-
-   - Date parsing and normalisation.
-
-   - Currency handling at the metadata level.
-
-3. All structured outputs must validate against the relevant Pydantic schema before storage or delivery.
-
-4. Unknown or ambiguous fields must be captured in a structured way (e.g. other_items / unmapped_columns) for inspection.
+- F1 Implement a pluggable table extraction provider interface.
+- F2 Enable only the LLMWhisperer implementation for the pilot.
+- F3 No open-source fallback extraction provider is permitted in the pilot.
+- F4 For each candidate table region \- call LLMWhisperer \- store raw LLMWhisperer output as a raw artefact associated to the extraction run
+- F5 The system must be parallel-ready \- allow multiple requests to be handled efficiently under pilot load \- enforce at most one active extraction per organisation via FIFO queue
+- F6 Not real-time \- jobs are batch style \- portal can poll status
+- F7 If processing is interrupted by client actions such as refresh, the client restarts and does not attempt to resume partial work.
+- F8 Support retries for transient failures and mark as failed after configurable max attempts.
+- F9 Produce per table quality scores from extraction and aggregate a quality score per document.
 
 **Acceptance criteria**
 
-- All successful extractions for pilot PDFs produce normalised JSON that passes validation against the canonical schemas.
+- F8 For typical PDFs under 20 pages, 95% complete end to end under 2 minutes and achieves the global ≥99% field-level accuracy target.
+- F9 The provider interface exists and the only enabled provider is LLMWhisperer.
+- F10 Failures are retried according to policy and surfaced in logs and portal views.
 
-- Schema validation failures are logged with clear diagnostics and mark the document as failed or partially successful.
+Validation notes \- QA verifies LLMWhisperer call per table and captures raw artefacts \- QA uses golden PDFs with human-labelled outputs to compare extracted data
 
-- QA can inspect example outputs and confirm that core fields (revenue, net income, key transaction attributes) are correctly mapped.
+Analytics and metrics \- Metric extraction_stage3_duration_ms, extraction_stage3_retry_attempt, extraction_stage3_quality_score and extraction_stage3_llmwhisperer_error.
 
-**Validation & observability**
+### 6.7 Feature G - Processing, normalization, and schema mapping (Extraction stage 4)
 
-- Metrics track schema validation failure rates by document type.
+**User story**
 
-- Logs record specific validation errors for troubleshooting.
-
----
-
-### 3.7 Feature F7 – Structured Storage Integration (Dual-path RAG)
-
-**Description**  
-Persist normalised data into a dual-path RAG storage model: exact rows in document_rows and semantic chunks in documents.
-
-**User stories**
-
-- _US7.1_ As a future product owner, I want this pilot to create a solid foundation for both SQL-like queries and semantic search without rework.
+As a downstream consumer I want extracted data normalized into canonical schemas so that I can reliably use the data in analysis and automation.
 
 **Functional requirements**
 
-1. For each successful normalisation run:
-
-   - Insert canonical rows into document_rows with appropriate dataset/document identifiers, organisation scoping, and metadata.
-
-   - Construct textual chunks (e.g. 400-character segments) representing key rows/sections; compute embeddings; insert into documents.
-
-2. Ensure both paths are written atomically so document_rows and documents stay in sync.
-
-3. Include metadata to identify document type, organisation, source PDF hash, and extraction version.
+- G1 Translate LLMWhisperer raw output to semi-structured JSON using Pydantic AI.
+- G2 Validate and enforce all structured outputs using Pydantic schemas, ensuring type safety, required fields and numeric precision
+- G3 Canonical schemas \- company accounts schema (e.g. income statement, balance sheet, cash flow by period) \- bank statement schema (e.g. transactions with date, description, amount, currency)
+- G4 Normalize formats \- dates \- currency codes at metadata level \- numeric parsing as decimal fixed precision
+- G5 Provide per-field confidence and mapping notes.
+- G6 Handle unknown labels \- preserve source label \- map to canonical when confident \- flag unmapped labels for inspection
 
 **Acceptance criteria**
 
-- All successful documents produce both document_rows and documents entries.
+- G7 All semi-structured JSON outputs validate against canonical Pydantic schemas.
+- G8 Schema validation failures are logged with clear diagnostics. Document marked as failed or partially successful.
+- G9 All financial amounts are stored and returned using decimal fixed precision representations.
 
-- For a sampled document, QA can join rows and chunks via identifiers and confirm consistency.
+Validation notes \- QA runs schema validation tests on golden dataset \- Logs record specific validation errors that include distinguishing Pydantic AI translation and Pydantic validation failures.
 
-- Retention logic (see NFRs) deletes structured rows while respecting metadata policies.
+Analytics and metrics \- Metric extraction_stage4_duration_ms, extraction_stage4_failure with fields: tool, document_type
 
-**Validation & observability**
+### 6.8 Feature H - Consolidation, storage, and delivery preparation (Extraction stage 5)
 
-- Metrics report counts of rows and chunks written per document and per organisation.
+**User story**
 
-- Logs flag any partial writes or failures in either path.
-
----
-
-### 3.8 Feature F8 – Result Delivery & Export (API \+ CSV/JSON)
-
-**Description**  
-Expose normalised structured data via API and downloads from the portal.
-
-**User stories**
-
-- _US8.1_ As an engineer, I can call a results API with a document_id and receive the normalised JSON.
-
-- _US8.2_ As an analyst, I can download CSVs from the portal for further Excel-based analysis.
+As the system I want outputs persisted in a dual-path RAG architecture and made deliverable so that users can SQL-like query exact rows or semantic context search.
 
 **Functional requirements**
 
-1. API endpoint, e.g. **GET /api/v1/documents/{document_id}**:
-
-   - Returns normalised JSON dataset if within the retention window and authorised for the requesting organisation.
-
-   - Returns 404 or 410 with a clear message if data has been deleted per retention policy or never existed.
-
-2. Portal integrations:
-
-   - From the document detail view, allow download of a CSV per main table (e.g. income statement, transactions).
-
-3. Ensure no personally identifiable information or sensitive metadata beyond what exists in the structured outputs is added.
+- H1 Dual-path RAG ingestion \- structured rows into `document_rows` with appropriate dataset/document identifiers, organisation scoping, and metadata \- semantic chunks plus embeddings into `documents`
+- H2 Both paths must remain consistent \- ingestion must be atomic or compensating \- if semantic ingestion fails, mark run failed and do not expose partial results
+- H3 Prepare delivery artefacts \- JSON payload for API retrieval \- CSV generation for portal download \- HTML view model for portal rendering
 
 **Acceptance criteria**
 
-- For a successful document, GET requests return the correct normalised JSON with appropriate HTTP status codes and headers.
+- H4 For a succeeded run (Extraction stage 4), `document_rows` and `documents` contain the expected records and share identifiers.
+- H5 For a sampled document, QA can join rows and chunks via identifiers and confirm consistency.
 
-- Portal downloads generate valid CSV files matching the underlying data.
+Validation notes \- QA verifies both storage paths and consistency checks \- Logs flag any partial writes or failures in either path
 
-- Requests for documents belonging to another organisation are rejected with 403\.
+Analytics and metrics \- Metric extraction_stage5_duration_ms, extraction_stage5_partial_write with path, and extraction_stage5_atomicity_violation.
 
-- Requests for expired data return a clear error without leaking metadata beyond what is allowed.
+### 6.9 Feature I - Result delivery and export
 
-**Validation & observability**
+**User story**
 
-- QA uses the pilot PDFs to verify round-tripping: upload → extract → normalise → GET → CSV/JSON compare.
-
-- Metrics track API result calls and download counts.
-
----
-
-### 3.9 Feature F9 – Logging, Metadata Capture & QA Support
-
-**Description**  
-Capture rich metadata for each PDF and extraction run to support debugging, QA, and future analysis.
-
-**User stories**
-
-- _US9.1_ As an LLM-based agetn, I need to inspect document-level metadata (hashes, OCR quality, table counts) when investigating issues.
+As a client I want to retrieve results by document id so that I can feed structured data into internal systems.
 
 **Functional requirements**
 
-1. For each uploaded PDF, capture and persist:
-
-   - File hash, page count, basic structural metadata.
-
-   - Detection of encryption, embedded JavaScript, or suspicious content where feasible.
-
-2. For each extraction run, capture:
-
-   - Pipeline stage timings (ingestion, detection, extraction, normalisation, storage).
-
-   - OCR confidence levels when OCR is used.
-
-   - Quality scores and warnings.
-
-3. Make a subset of metadata visible in the portal (e.g. quality score, basic warnings) and store full metadata in an internal table/API.
+- I1 Provide authenticated GET endpoint for results.
+- I2 Support \- JSON response \- CSV link generation per main table (e.g. income statement, balance sheet) for portal
+- I3 Handle status \- if processing return 202 with retry guidance \- if failed return error code and high-level reason \- if expired return 410 with retention explanation
 
 **Acceptance criteria**
 
-- For any pilot document, the LLM agent can query and retrieve all relevant metadata for debugging.
+- I4 A completed document can be retrieved as JSON with correct schema and basic metadata, HTTP status codes and headers.
+- I5 Portal downloads generate valid CSV files matching the underlying data.
+- I6 An expired document returns a clear error code and does not return structured data.
+- I7 Requests for documents belonging to another organisation are rejected with clear error code.
 
-- Portal surfaces a quality score badge and key warnings for each document.
+Validation notes \- QA tests each status response.
 
-- Logs include correlation IDs enabling traceability from ingestion to storage.
+Analytics and metrics \- Event results_retrieved and results_retrieval_failure.
 
-- Logs are structured with stage labels, error codes and sufficient context so that a new LLM session can reconstruct pipeline runs and propose fixes.
+### 6.10 Feature J - Logging, metadata capture, and QA support
 
-**Validation & observability**
+**User story**
 
-- QA spot-checks metadata for a sample of documents and traces them through logs.
-
----
-
-### 3.10 Feature F10 – Pilot Administration & Usage Reporting
-
-**Description**  
-Lightweight reporting for the project owner to monitor pilot activity and success metrics.
-
-**User stories**
-
-- _US10.1_ As the project owner, I want to see how many documents each pilot organisation has processed and basic success/failure counts.
+As the project owner I want an LLM-based agent to have access to rich document-level logs and metadata so that issues can be investigated and diagnosed.
 
 **Functional requirements**
 
-1. Backed by a transactions\-style table and/or summary views, provide the ability (via Supabase console, SQL scripts, or minimal admin view) to:
-
-   - Count documents by organisation, status, and time period.
-
-   - Summarise extraction success rates and average latencies.
-
-2. No separate admin UI is required beyond what is needed for efficient pilot operations.
+- J1 Structured logs for each stage \- correlation id \- organisation_id \- document_id \- document type \- source channel \- timings \- error codes
+- J2 Metadata captured permanently \- hashes \- digital signatures \- XMP metadata \- OCR mismatch logs when relevant \- embedded JS presence flags
+- J3 Metadata for each extraction run \- confidence levels (OCR) \- quality scores
+- J4 Surface minimal quality flags in portal and full metadata in internal table
 
 **Acceptance criteria**
 
-- The project owner can run predefined SQL queries or use a simple admin screen to retrieve the pilot metrics.
+- J5 LLM can query and retrieve all metadata for debugging.
+- J6 Failed run logs includes stage of failure and a stable error code.
+- J7 Logs contain sufficient context so that new LLM agent sessions can reconstruct engine runs and propose fixes.
 
-- Metrics align with the counts observed in logs and portal usage.
+Validation notes \- QA asserts logs contain required fields.
 
-**Validation & observability**
+Analytics and metrics \- Metric stage_failure_rate by stage and metadata_parse_failure_count by field.
 
-- QA verifies that metrics correctly aggregate underlying records for a test environment.
+### 6.11 Feature K - Pilot administration and usage reporting
 
----
+**User story**
 
-## 4 User flows & UX notes
+As the project owner I want visibility into pilot usage and performance per orgnaisation so that I can evaluate success metrics.
 
-### 4.1 API ingestion flow
+**Functional requirements**
 
-1. Client system calls POST /api/v1/documents with PDF and metadata.
+- K1 Maintain a transactions-style operations table recording \- organisation_id \- optional user_id \- document_id \- source channel \- stage timings \- outcome \- virtual token counts for future usage analytics
+- K2 Provide ability (via Supabase console or documented SQL queries) to compute \- number of PDFs processed \- success rate \- average and p95 pipeline time \- accuracy sampling metadata \- retention deletions count
 
-2. API validates auth, file type, and size.
+**Acceptance criteria**
 
-3. API creates document record (received → queued), enqueues extraction, returns document_id.
+- K3 Non-technical project owner can run predefined SQL queries or use Supabase console to retrieve pilot metrics.
+- K4 Queries produce correct counts for a test dataset that align with logs.
 
-4. Client polls status via a status endpoint or reuses the results endpoint; polling strategy to be defined in TAD.
+Validation notes \- QA validates table writes and query outputs.
 
-5. On completion, status transitions to success or failed; results become available per F8.
+### 6.12 Feature L - Retention and deletion
 
-### 4.2 Portal upload and history flow
+**User story**
 
-1. Analyst logs into portal using organisation-scoped credentials.
+As the client I want structured outputs deleted after (configurable) 10 days while metadata persists so that we minimise data retention risk without losing audit context.
 
-2. Analyst uploads PDF via Upload page.
+**Functional requirements**
 
-3. Portal calls ingestion API and shows confirmation.
+- L1 Structured outputs retention \- delete structured outputs after 10 days \- outputs include normalized JSON, CSV, HTML view model, `document_rows`, `documents`
+- L2 Metadata retention \- retain all metadata permanently including document record, hashes, signatures, and run summaries
+- L3 No PDF persistence \- PDFs must not be stored to durable storage \- ephemeral scratch storage permitted only during processing and must be cleaned up
+- L4 Scheduled job \- idempotent \- observable \- logs each deletion batch with counts
+- L5 API behaviour post expiry \- results endpoint returns 410 \- portal shows expired state
 
-4. Analyst navigates to Document History and sees the new document with queued status.
+**Acceptance criteria**
 
-5. When extraction completes, status updates to success and quality score appears.
+- L6 A document older than 10 days returns expired and has no structured outputs present in storage tables.
+- L7 Metadata remains queryable for the same document.
 
-6. Analyst clicks into the document to view HTML tables and download CSV.
+Validation notes \- QA runs time-travel tests with short retention in non-prod.
 
-### 4.3 Result consumption flow (API)
+Analytics and metrics \- Metric retention_deletions_count and retention_deletion_error_count.
 
-1. Client system stores the document_id received during ingestion.
+## 7 User flows & UX notes
 
-2. Once sufficient time has elapsed, client calls GET /api/v1/documents/{document_id}.
+### 7.1 API ingestion flow
 
-3. If extraction succeeded and data is within retention window, service returns normalised JSON.
+1. Client system calls endpoint (Feature A) with PDF and metadata.
+2. API validates auth, file type, size, and rejects encrypted/password-protected PDFs with error.
+3. API creates document record with queued status, enqueues extraction job, and returns `document_id` within performance targets.
+4. System processes document asynchronously through five extraction stages and updates status transitions.
+5. If processing is interrupted, job may restart rather than resume.
+6. Client polls status via results endpoint; on completion, status transitions to success or failed (Feature I).
 
-4. If extraction failed, service returns an error status and high-level reason; detailed diagnostics in internal logs.
+### 7.2 Portal upload and history flow
 
-5. If data expired, service returns appropriate error status indicating retention expiry.
+1. Analyst logs into pilot portal.
+2. Analyst uploads PDF and selects required document type.
+3. Portal submits file through ingestion API and shows confirmation.
+4. Analyst navigates to Document History, where document appears with queued status.
+5. If analyst refreshes during processing, portal restarts client-side process.
+6. When extraction completes, Document History shows final status plus quality indicators.
+7. Analyst clicks into document to view HTML tables and download CSV.
 
-### 4.4 Pilot monitoring flow
+### 7.3 Result consumption flow (API)
 
-1. Project owner connects to Supabase or admin view.
+1. Client system stores returned `document_id`.
+2. Client calls results endpoint with `document_id`.
+3. If successful status and within retention, service returns validated normalised JSON.
+4. If failure status, service returns an error status with a high-level reason, detailed diagnostics in internal logs.
+5. If expired status, service returns appropriate error status and does not return structured outputs.
 
-2. Runs prepared queries or views summarising document counts, success rates, and latency statistics.
+## 8 API requirements
 
-3. Uses these to assess progress towards success metrics and decide on next steps.
+### 8.1 Authentication model
 
-UX should favour clarity and reliability over visual polish; minimal but coherent layout and styling is sufficient.
+- Organisation-level API key for API calls.
+- Minimal portal login.
+- Row-level security enforced by organisation_id.
+- user_id is nullable and reserved for future per-user audit.
 
----
+### 8.2 Transport security
 
-## 5 Assumptions, dependencies, and risks
+- External API and web portal access over HTTPS.
+- Modern TLS enforced (TLS 1.2 or higher).
+- No unauthenticated or unencrypted endpoints.
 
-### 5.1 Key assumptions
+### 8.3 Rate limits
 
-- Pilot organisations will provide at least 30 real, varied financial PDFs early in the project.
+- Pilot defaults to conservative per-organisation limits.
+- Return 429 with retry-after.
 
-- Client engineering teams can integrate with standard HTTPS/JSON API patterns and manage API keys.
+### 8.4 Status model
 
-- UK/EU hosting with basic security best practices is sufficient for the pilot.
+`queued` `processing` `succeeded` `failed` `expired`.
 
-- Future KYC, AML, credit, and modelling features will build on the canonical schemas and dual-path RAG model defined here.
+## 9 Assumptions, dependencies, and risks
 
-### 5.2 Dependencies and risks (summary)
+### 8.1 Assumptions
 
-Major dependencies and their risks are summarised:
+- Pilot success measurement relies on a golden test set plus spot checks and QA reports.
+- Pilot users accept batch-style processing and polling/status checks rather than real-time extraction.
+- Refresh behaviour is intentionally restart-only, and pilot users will tolerate this with clear messaging.
 
-- **Real pilot PDFs** – If too few or too homogeneous, accuracy validation is weakened.
+### 9.2 Dependencies
 
-- **Open-source libraries and LLMWhisperer** – Poor performance or API changes could reduce accuracy; mitigated by pluggable design and monitoring.
+- LLMWhisperer is only enabled table extraction provider for pilot; no open-source fallback used.
+- Supabase supports organisation scoping, operational queries, and retention enforcement.
+- Portal uses same ingestion/results APIs as API-first service.
+- Scheduled deletion mechanism runs reliably and is observable.
 
-- **OCR engine** – Poor scan quality may degrade results; mitigated by quality flags and expectations.
+### 9.3 Risks
 
-- **Supabase/PostgreSQL and hosting platform** – Free-tier quotas and outages could affect reliability.
-
-- **Single-builder constraint** – Increases schedule risk; mitigated by scope discipline and documentation.
-
-- **Retention jobs and in-memory queue** – Misconfiguration can delete data prematurely or lose queued jobs; mitigated by idempotent jobs and restart reconciliation.
+- Accuracy target not met on real-world PDFs, especially scanned/low-quality inputs, or validation weakened if too few PDFs or too homogeneous.
+- Provider latency/outages cause end-to-end runtime to exceed pilot NFR targets.
+- Restart-on-refresh causes user confusion or duplicate submissions if messaging is unclear.
+- Retention enforcement defects lead to over-retention or premature deletion.
+- Gaps between “measured externally” goals (time saved, commercial signals) and what’s instrumented internally create ambiguity if reporting isn’t disciplined.
 
 Each risk must appear in the project’s risk register with likelihood, impact, and mitigation plan, and be reviewed at least once mid-pilot.
 
----
+## 10 Phased Delivery
 
-## 6 Non-functional requirements (NFRs)
+Each phase builds on the previous one and must be usable in isolation for its intended audience.
 
-NFRs are adopted as PRD-level requirements. Engineering must demonstrate how each is satisfied in the TAD and test plan.
-
-**NFR categories**
-
-1. **Performance – API**
-
-   - P95 response time \< 500 ms for ingestion requests up to 20 MB; ingestion must enqueue extraction and return immediately.
-
-2. **Performance – Pipeline**
-
-   - For PDFs ≤ 20 pages, 95% of extractions complete within 5 minutes under expected pilot load (≤ 200 PDFs/day).
-
-3. **Concurrency**
-
-   - At most one active extraction per organisation_id; additional jobs queued FIFO.
-
-4. **Accuracy & Quality**
-
-   - ≥99% field-level extraction accuracy on 30 real pilot PDFs, measured versus human-labelled benchmark.
-
-5. **Data retention & storage**
-
-   - Structured outputs retained for max 10 days. PDFs never persisted to durable storage. Metadata may be stored permanently.
-
-6. **Security – transport & access**
-
-   - All external access via HTTPS/TLS 1.2+; no unauthenticated endpoints.
-
-   - Row-level security (RLS) and soft deletes enforced; no cross-org access.
-
-7. **Secrets management**
-
-   - All secrets stored in env vars or managed secrets store; none in source control.
-
-8. **Structured storage / RAG**
-
-   - Use document_rows and documents tables with schemas that can support future AML/credit/DCF modules.
-
-9. **Numerical precision**
-
-   - All financial amounts stored using decimal/fixed-precision types (no binary floats) to avoid rounding errors.
-
-10. **Reliability & availability**
-
-    - Target 99.0% uptime during UK business hours; planned maintenance outside those hours.
-
-11. **Observability**
-
-    - Structured logs for each pipeline stage; metrics for PDFs processed, timings, success/failure, retention deletions.
-
-12. **Maintainability & extensibility**
-
-    - Modular boundaries that a single engineer can understand and extend within 1–2 days.
-
-    - Adding new document types should primarily affect extraction and schema mapping, not core ingestion/auth.
-
-13. **Schema contracts**
-
-    - All inputs and outputs must validate against canonical Pydantic schemas per PDF family; these schemas act as the canonical contracts for ingestion, normalisation, storage, and API responses.
-
-14. **Deployment & recovery**
-
-    - Automated deployment with rollback capability within 30 minutes; database backups with ≥7-day point-in-time recovery.
-
-15. **Testing**
-
-    - Permanent curated regression fixtures (sample PDFs \+ expected JSON) maintained outside production retention policies.
-
-Each feature’s acceptance criteria and QA plan must be aligned with these NFRs where relevant.
-
----
-
-## 7 Analytics and success measurement
-
-### 7.1 Core product analytics
-
-The system must provide enough logging and metrics to evaluate pilot success without introducing a full analytics platform.
-
-**Events / metrics (minimum)**
-
-- documents.ingested – Count of documents ingested by organisation, mode, and document type.
-
-- documents.extracted – Count of successful extractions; distribution of quality scores.
-
-- documents.failed – Count of failed extractions by error category.
-
-- documents.viewed – Portal views of document detail pages.
-
-- documents.downloaded – CSV download counts by type.
-
-- pipeline.latency – Stage-wise timings (ingestion→queue, queue→start, start→finish).
-
-These may be implemented as database-driven metrics and/or exported to a simple time-series tool if already in use.
-
-### 7.2 Mapping to pilot goals
-
-- **G1 (accuracy)** – Validated via golden test set and spot checks on real pilot PDFs; recorded in QA reports rather than runtime analytics.
-
-- **G2 (time reduction)** – Measured externally by client through before/after studies; the system must provide enough usage data (e.g. document counts and timestamps) to support analysis.
-
-- **G3 (pilot engagement)** – Derived from documents.ingested and organisation metadata.
-
-- **G4 (commercial signal)** – Tracked manually through CRM or project notes.
-
-- **G5 (architecture readiness)** – Assessed qualitatively by engineering and product at pilot end, based on how well dual-path RAG, schemas, and NFRs held up.
-
----
-
-## 8 Phased delivery
-
-The pilot will be delivered in three phases. Each phase builds on the previous one and must be usable in isolation for its intended audience.
-
-### 8.1 Core extraction engine (API only)
+### 10.1 Core extraction engine (API only)
 
 **Objective**
 
@@ -808,12 +460,14 @@ Enable users to upload PDFs via API and retrieve validated structured JSON outpu
 **Phase 1 exit criteria**
 
 - Pilot PDFs can be:
+
   - Uploaded via API,
   - Processed end-to-end through the five stages, and
-  - Retrieved as validated normalised JSON within the pipeline performance NFRs.
-- Core NFRs for API performance, schema contracts, numerical precision, and basic observability are met at expected pilot load.
+  - Retrieved as validated normalised JSON within pipeline performance NFRs.
 
-### 8.2 Web portal and end-to-end UX
+- Core NFRs for API performance, schema contracts, numerical precision, retention enforcement, and basic observability are met at expected pilot load.
+
+### 10.2 Web portal and end-to-end UX
 
 **Objective**
 
@@ -821,19 +475,22 @@ Allow users to use the system without writing code and give stakeholders a visib
 
 **Scope**
 
-- Build minimal but coherent web portal on top of Phase 1 APIs.
-- Implement basic empty states, error handling, and access control as described in Section 3\.
+- Build minimal, pilot-only web portal on top of Phase 1 APIs.
+- Support manual PDF upload, document history, status visibility, quality indicators, and result viewing/downloading.
+- Implement access control, empty states, failure states, and retention-related messaging consistent described elsewhere.
 
 **Phase 2 exit criteria**
 
 - Operations and risk analysts can:
-  - Log into the portal,
-  - Upload PDFs
-  - See document status and quality scores, and
-  - View and download structured outputs.
-- Pilot stakeholders can walkthrough the full upload-to-result flow via the portal.
 
-### 8.3 Pilot operationalisation
+  - Log into portal,
+  - Upload PDFs,
+  - See document processing status and quality indicators, and
+  - View and download structured outputs.
+
+- Pilot stakeholders can walkthrough the full upload-to-result flow via portal without engineering assistance.
+
+### 10.3 Pilot operationalisation
 
 **Objective**
 
@@ -842,32 +499,69 @@ Operate the system reliably for the pilot, with sufficient monitoring, diagnosti
 **Scope**
 
 - Complete and tune observability and operational features.
+
 - Define and document runbooks for:
+
   - Monitoring throughput, latency, and error rates.
   - Diagnosing and triaging failed documents.
-  - Producing pilot progress summaries aligned to Section 7.2.
+  - Verifying retention and deletion behaviour.
+  - Producing pilot progress summaries aligned to success metrics.
 
 **Phase 3 exit criteria**
 
 - Pilot can run with:
+
   - Clear visibility of volumes, success/failure rates, and pipeline latency.
   - A repeatable process for investigating failures using logs and metadata.
-  - Enough reporting to evaluate pilot success metrics and inform next-stage roadmap decisions.
+  - Sufficient reporting to evaluate pilot success metrics and inform next-stage roadmap decisions.
 
----
+## 11 Success Metrics & Analytics
 
-## 9 Open questions and future considerations
+### 11.1 Goal-to-measurement interpretation
 
-The following items are **not required** for pilot delivery but should be considered when evaluating architecture and roadmap:
+Each pilot goal is validated through explicit, predefined mechanisms. Not all goals are measured via runtime analytics.
 
-- What additional document families (e.g. tax returns, invoices) are highest priority after accounts and bank statements?
+- **G1 Accuracy (≥99% field-level accuracy)**
 
-- Which downstream modules (AML rules, credit spreading, DCF-like modelling) are likely to be built first on top of this core engine?
+  - Validated via a golden test set and spot checks on real pilot PDFs.
+  - Evidence captured in QA reports and review logs, not user-facing analytics.
 
-- Do future versions require configurable retention windows per organisation or geography?
+- **G2 Time reduction (≥50%)**
 
-Any decisions on these points should be captured in future versions of this PRD or in separate PRDs for follow-on phases.
+  - Measured externally by the client using before/after baselines.
+  - Not instrumented within the application.
 
----
+- **G3 Pilot adoption**
 
-**End of PRD v0.5**
+  - Validated via document counts, organisation activity, and confirmed pilot usage.
+
+- **G4 Commercial signals**
+
+  - Validated qualitatively via client communications.
+
+### 11.2 Operational monitoring flows
+
+**Pilot monitoring flow**
+
+1. Project owner accesses Supabase console.
+2. Runs prepared queries against extraction and operation tables.
+3. Reviews volumes, success/failure rates, and latency distributions.
+4. Compares observed metrics against success targets.
+5. Records findings in pilot progress summaries.
+
+**Failure investigation flow**
+
+1. Identify failed documents via status fields or error logs.
+2. Inspect structured logs and metadata for the relevant pipeline stage.
+3. Determine whether failure is input-related, extraction-related, specific-tool-related, or systemic.
+4. Decide on retry, exclusion, or remediation actions.
+
+## 12 Future Considerations (Non-Blocking)
+
+The following items are explicitly out of scope for pilot delivery but should be considered when evaluating architecture and roadmap decisions:
+
+- Extended document types beyond company accounts and bank statements.
+- Resumable or long-running extraction jobs across client refreshes.
+- Advanced analytics, financial modelling, or downstream decisioning modules.
+- Per-user role management, SSO, or enterprise access controls.
+- Long-term data retention or archival strategies beyond the fixed pilot window.
