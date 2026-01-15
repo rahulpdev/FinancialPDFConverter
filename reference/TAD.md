@@ -2,12 +2,12 @@
 
 Financial PDFs Converter
 
-TAD Version 1.1 (Combined)
+TAD Version 1.1
 Date 2025-12-23
 
 ## 1 Purpose and scope
 
-- Purpose: production-ready pilot architecture implementing PRD requirements and Blueprint Section 7 guidance.
+- Purpose: production-ready pilot architecture implementing PRD requirements.
 - Audience: engineers building and operating the pilot; future maintainers extending to vNext modules.
 - In scope:
   - API-first PDF ingestion, async processing, results retrieval.
@@ -40,7 +40,6 @@ Date 2025-12-23
   - Semantic path: text chunks + embeddings in `documents` (pgvector).
 - Vertical-slice architecture.
 - Per-organisation concurrency: at most one active extraction per `organisation_id`; FIFO for additional jobs.
-- Single-builder constraint: architecture and ops sized for one engineer.
 
 ### 3.2 Explicit trade-off decisions
 
@@ -88,17 +87,17 @@ Date 2025-12-23
 
 ### 4.2 Vertical-slice repository structure
 
-- `src/slices/auth/` (API keys, portal auth, middleware)
-- `src/slices/ingestion/` (upload/url ingestion, validation, metadata)
-- `src/slices/pipeline/` (job scheduler, per-org FIFO, status transitions)
-- `src/slices/extraction_stage1/` (input discovery + run registration)
-- `src/slices/extraction_stage2/` (table detection and table-map)
-- `src/slices/extraction_stage3/` (LLMWhisperer extraction, retries, raw artefacts)
-- `src/slices/extraction_stage4/` (normalisation, schema mapping, Pydantic validation)
-- `src/slices/extraction_stage5/` (dual-path persistence, delivery artefact prep)
-- `src/slices/results/` (results API, CSV generation, HTML view models)
-- `src/slices/portal/` (minimal UI pages, server handlers)
-- `src/slices/ops/` (retention, rate limits, kill-switch, health checks)
+- `src/auth/` (API keys, portal auth, middleware)
+- `src/ingestion/` (upload/url ingestion, validation, metadata)
+- `src/pipeline/` (job scheduler, per-org FIFO, status transitions)
+- `src/extraction_stage1/` (input discovery + run registration)
+- `src/extraction_stage2/` (table detection and table-map)
+- `src/extraction_stage3/` (LLMWhisperer extraction, retries, raw artefacts)
+- `src/extraction_stage4/` (normalisation, schema mapping, Pydantic validation)
+- `src/extraction_stage5/` (dual-path persistence, delivery artefact prep)
+- `src/results/` (results API, CSV generation, HTML view models)
+- `src/portal/` (minimal UI pages, server handlers)
+- `src/ops/` (retention, rate limits, kill-switch, health checks)
 - `src/shared/` (db, config, logging, error codes, utilities)
 
 ### 4.3 Data flow
