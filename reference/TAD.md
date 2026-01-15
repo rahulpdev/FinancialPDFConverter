@@ -11,7 +11,7 @@ Date 2025-12-23
 - Audience: engineers building and operating the pilot; future maintainers extending to vNext modules.
 - In scope:
   - API-first PDF ingestion, async processing, results retrieval.
-  - Minimal pilot web portal (upload, history, results view, CSV download).
+  - Minimal pilot web portal (upload, history, progress indicator, results view, CSV download).
   - Five-stage extraction engine (Stages 1–5), LLMWhisperer-only table extraction.
   - Dual-path storage: exact rows in `document_rows`, semantic chunks + embeddings in `documents`.
   - Retention enforcement: structured outputs deleted after 10 days; metadata retained.
@@ -49,6 +49,9 @@ Date 2025-12-23
 - **Per-org FIFO concurrency guard implemented with hybrid approach**
   - In-memory FIFO for immediate scheduling + DB-backed job records for crash recovery.
   - Trade-off: slightly more logic than pure in-memory; materially improves correctness after restarts.
+- **Non-resumable batch execution model**
+  - Job execution is intentionally non-resumable; interruption or page refresh results in a full restart.
+  - Trade-off: forfeits mid-run recovery in exchange for simpler orchestration, predictable behaviour, and lower implementation risk during pilot.
 - **Embeddings on ingest, feature-flagged**
   - Default ON to match dual-path contract; allow OFF for performance/cost tuning.
   - Trade-off: risk of higher latency/cost; avoids future backfill burden.
@@ -74,9 +77,10 @@ Date 2025-12-23
   - Auth (org API keys, portal session).
   - Validation, document registration, orchestration.
 - **Worker Runtime (same codebase)**
-  - Background job loop pulling queued documents.
+  - Parallel-ready backend service executing batch-style extraction jobs.
+  - Designed for concurrent processing across documents; not intended for real-time or streaming workloads.
   - Five-stage pipeline execution.
-  - Retry policy, idempotency, status transitions.
+  - Executes full pipeline runs atomically; interrupted runs restart from the beginning.
 - **Database (Supabase Postgres)**
   - RLS enforced by `organisation_id`.
   - pgvector enabled for embeddings.
@@ -146,6 +150,7 @@ Date 2025-12-23
 
 - `queued` → `processing` → (`succeeded` | `failed`) → `expired` (retention post-processing)
 - Prohibited terms: `completed`.
+- Status reflects the lifecycle of a single batch execution attempt.
 
 ### 5.4 Error model
 
@@ -223,10 +228,11 @@ Date 2025-12-23
 ### 7.1 Scheduler and concurrency
 
 - Job state is persisted (`documents.status`, `extraction_runs.status`).
+- The system is parallel-ready and supports multiple extraction jobs executing concurrently across documents.
 - In-memory per-org FIFO scheduler enforces single active job per org.
-- Crash recovery:
-  - On startup: reconcile `processing` jobs older than timeout → mark `failed` with `retryable=true` or requeue if safe.
-  - Worker loop polls DB for `queued` documents and pushes into in-memory scheduler.
+- Job execution is non-resumable by design:
+  - If a worker process terminates mid-run, the extraction is marked failed and may be re-submitted as a new run.
+  - No partial progress is persisted or reused between runs.
 
 ### 7.2 Stage 1 — Input discovery and run registration
 
@@ -250,8 +256,8 @@ Date 2025-12-23
 
 ### 7.5 Stage 4 — Normalisation and schema mapping
 
-- Translate provider output into semi-structured JSON.
-- Validate against canonical Pydantic schemas by document family.
+- Translate raw provider outputs using Pydantic AI, producing structured JSON representations.
+- Validate translated outputs against canonical Pydantic schemas by document family.
 - Numeric precision: decimal/fixed precision only.
 - Unknown labels preserved + flagged; mapping notes stored.
 
@@ -271,10 +277,9 @@ Date 2025-12-23
 
 ### 8.1 Performance
 
-- Ingestion API P95 < 500 ms:
-  - Validate + persist metadata only; never block on extraction.
-- Pipeline runtime target:
-  - ≤ 5 minutes for 95% of PDFs ≤ 20 pages under pilot load; hard timeout 10 minutes.
+- Typical batch processing time::
+  - ~1–2 minutes for full company accounts PDFs under pilot conditions.
+- System is optimized for batch-style throughput, not real-time or interactive processing.
 - Per-org concurrency:
   - Single active extraction per org; FIFO queue.
 
