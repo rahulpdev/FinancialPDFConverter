@@ -31,8 +31,7 @@ Operations and risk teams manually re-key data from PDFs into spreadsheets or in
 - NG3 Multi-tenant self-serve onboarding, SSO, granular RBAC, or complex account management.
 - NG4 Storage of original PDFs in durable storage.
 - NG5 Any open-source or alternative provider fallback for table extraction in the pilot.
-- NG6 Live progress bar for pilot processing.
-- NG7 Native mobile apps or heavy marketing website.
+- NG6 Native mobile apps or heavy marketing website.
 
 ## 4 Users and personas
 
@@ -83,7 +82,7 @@ As a client engineering team I want to submit a financial PDF file or URL and re
 - A1 Provide an authenticated POST endpoint to ingest PDFs.
 - A2 Accept either multipart upload or a file URL.
 - A3 Validate input \- File must be PDF \- Size must be within configured limit 20 MB for pilot API P95 target \- Reject encrypted or password-protected PDFs with a clear error
-- A4 Register a document record with \- organisation_id \- optional user_id nullable \- document_type_hint optional \- customer_reference optional \- source channel api or portal \- content hash \- environment sandbox or production \- size_bytes \- filename \- created timestamps
+- A4 Register a document record with \- organisation_id \- optional user_id nullable \- document_type_hint \- customer_reference optional \- source channel api or portal \- content hash \- environment sandbox or production \- size_bytes \- filename \- created timestamps
 - A5 Return response within P95 500 ms for valid requests \- document_id \- queued status \- validation warnings if any
 - A6 Enqueue the extraction job respecting per-organisation concurrency limits.
 - A7 Status transitions must be explicit: `queued`, `processing`, `succeeded`, `failed`, `expired`.
@@ -167,7 +166,7 @@ As the system I want to identify document properties and prepare an extraction r
 
 - D1 Create an extraction run record.
 - D2 Capture document metadata \- hash \- digital signatures if present \- XMP metadata if present \- embedded JS flag if present \- PDF version \- page count \- suspected scan quality flags
-- D3 Determine processing plan \- document type from hint or heuristic \- page ranges
+- D3 Determine processing plan \- document type from hint with heuristic validation or warning \- page ranges
 - D4 Emit correlation id used across all stages.
 
 **Acceptance criteria**
@@ -243,7 +242,7 @@ As a downstream consumer I want extracted data normalized into canonical schemas
 - G2 Validate and enforce all structured outputs using Pydantic schemas, ensuring type safety, required fields and numeric precision
 - G3 Canonical schemas \- company accounts schema (e.g. income statement, balance sheet, cash flow by period) \- bank statement schema (e.g. transactions with date, description, amount, currency)
 - G4 Normalize formats \- dates \- currency codes at metadata level \- numeric parsing as decimal fixed precision
-- G5 Provide per-field confidence and mapping notes.
+- G5 Provide per-row confidence and mapping notes.
 - G6 Handle unknown labels \- preserve source label \- map to canonical when confident \- flag unmapped labels for inspection
 
 **Acceptance criteria**
@@ -349,7 +348,7 @@ As the client I want structured outputs deleted after (configurable) 10 days whi
 
 **Functional requirements**
 
-- L1 Structured outputs retention \- delete structured outputs after 10 days \- outputs include normalized JSON, CSV, HTML view model, `document_rows`, `document_chunks`
+- L1 Structured outputs retention \- delete structured outputs after 10 days \- canonical structured outputs include normalized JSON, `document_rows` and `document_chunks`; CSV and HTML tables are generated on demand
 - L2 Metadata retention \- retain all metadata permanently including document record, hashes, signatures, and run summaries
 - L3 No PDF persistence \- PDFs must not be stored to durable storage \- ephemeral scratch storage permitted only during processing and must be cleaned up
 - L4 Scheduled job \- idempotent \- observable \- logs each deletion batch with counts

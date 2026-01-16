@@ -125,7 +125,6 @@ Date 2025-12-23
   - Auth: org API key.
   - Body: multipart PDF upload OR JSON with `file_url`.
   - Returns: `document_id`, `status=queued`, warnings.
-  - Errors: 400/401/403/413/415/429/5xx.
 
 - `GET /api/v1/documents/{document_id}`
   - Auth: org API key.
@@ -134,9 +133,6 @@ Date 2025-12-23
     - If `processing|queued`: `status=processing|queued`, retry guidance.
     - If `failed`: `status=failed`, stable error code, high-level reason.
     - If `expired`: `status=expired`, retention explanation.
-  - Status codes (default):
-    - `200` for terminal states (succeeded/failed/expired).
-    - `202` for queued/processing.
 
 ### 5.2 Portal endpoints (thin)
 
@@ -173,7 +169,7 @@ Date 2025-12-23
 
 - `documents`
 
-  - `id`, `organisation_id`, `user_id` (nullable), `source_channel` (api|portal)
+  - `id`, `organisation_id`, `user_id` (nullable), `source_channel` (api|portal), `environment` (sandbox|production)
   - `document_type_hint` (nullable), `customer_reference` (nullable)
   - `status` (enum), `created_at`, `updated_at`, `deleted_at` (soft delete)
   - PDF metadata: `filename`, `size_bytes`, `content_hash`, `page_count`, `pdf_version`
@@ -243,7 +239,7 @@ Date 2025-12-23
 
 - Create `extraction_runs` row.
 - Capture PDF metadata and QA flags.
-- Determine processing plan (doc type from hint/heuristic).
+- Determine processing plan (doc type from hint, heuristic validation or warning only).
 - Emit `correlation_id` for all subsequent logs.
 
 ### 7.3 Stage 2 — Table detection
@@ -305,7 +301,7 @@ Date 2025-12-23
   - Content hash used for optional duplicate detection.
   - Retriable stages capture attempt counters.
 - Restart recovery:
-  - DB-backed job states + reconciliation logic.
+  - DB-backed job states solely for observability, failure marking, and auditability.
 - Backups:
   - DB PITR ≥ 7 days.
 
@@ -321,6 +317,10 @@ Date 2025-12-23
 
 - Vertical slices; minimal coupling; shared primitives in `src/shared` only.
 - One-engineer operability: runbooks + clear local dev setup.
+
+### 8.6 Accessibility
+
+- Portal must meet WCAG 2.1 AA baseline requirements, including keyboard navigation, sufficient colour contrast, semantic markup, and screen-reader compatibility.
 
 ## 9 Dependency-risk mitigations
 
