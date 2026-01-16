@@ -13,7 +13,7 @@ Date 2025-12-23
   - API-first PDF ingestion, async processing, results retrieval.
   - Minimal pilot web portal (upload, history, progress indicator, results view, CSV download).
   - Five-stage extraction engine (Stages 1–5), LLMWhisperer-only table extraction.
-  - Dual-path storage: exact rows in `document_rows`, semantic chunks + embeddings in `documents`.
+  - Dual-path storage: exact rows in `document_rows`, semantic chunks + embeddings in `document_chunks`.
   - Retention enforcement: structured outputs deleted after 10 days; metadata retained.
   - Observability, security baseline, CI/CD, deployment, handover artifacts.
 - Out of scope:
@@ -37,7 +37,7 @@ Date 2025-12-23
 - LLMWhisperer is the only enabled table extraction provider for pilot.
 - Dual-path RAG design:
   - Structured path: normalized rows in `document_rows`.
-  - Semantic path: text chunks + embeddings in `documents` (pgvector).
+  - Semantic path: text chunks + embeddings in `document_chunks` (pgvector).
 - Vertical-slice architecture.
 - Per-organisation concurrency: at most one active extraction per `organisation_id`; FIFO for additional jobs.
 
@@ -111,7 +111,7 @@ Date 2025-12-23
 3. Worker executes five stages; updates `extraction_runs` and `documents.status`.
 4. Stage 5 writes:
    - `document_rows` (normalized rows).
-   - `documents` semantic chunks + embeddings.
+   - `document_chunks` semantic chunks + embeddings.
    - delivery artefacts metadata (for JSON/CSV/HTML rendering).
 5. Client polls results endpoint; portal shows history and downloads.
 6. Retention job deletes structured outputs after 10 days; keeps metadata and audit.
@@ -171,15 +171,20 @@ Date 2025-12-23
 
   - `id`, `organisation_id`, `key_hash`, `created_at`, `revoked_at`, `last_used_at`.
 
-- `documents` (metadata + semantic path)
+- `documents`
 
   - `id`, `organisation_id`, `user_id` (nullable), `source_channel` (api|portal)
   - `document_type_hint` (nullable), `customer_reference` (nullable)
   - `status` (enum), `created_at`, `updated_at`, `deleted_at` (soft delete)
   - PDF metadata: `filename`, `size_bytes`, `content_hash`, `page_count`, `pdf_version`
   - QA flags: `scan_suspected`, `embedded_js_present`, `signature_present`, `xmp_present`
-  - Semantic fields (for chunks): `chunk_id`, `chunk_text`, `embedding` (vector), `embedding_model`, `embedding_dim`
   - Retention: `expires_at`, `expired_at`.
+
+- `document_chunks` (semantic path)
+
+  - `id`, `organisation_id`, `document_id`,
+  - Semantic fields (for chunks): `chunk_index`, `chunk_text`, `embedding` (vector), `embedding_model`, `embedding_dim`
+  - `created_at`, `expires_at`, `deleted_at`
 
 - `extraction_runs` (transactions-style)
 
@@ -219,9 +224,9 @@ Date 2025-12-23
 ### 6.3 Retention semantics
 
 - Structured outputs subject to deletion:
-  - `document_rows`, `documents` semantic chunks, `raw_artefacts`, delivery artefact rows/fields.
+  - `document_rows`, `document_chunks` semantic chunks, `raw_artefacts`, delivery artefact rows/fields.
 - Metadata retained:
-  - `documents` base metadata row (with outputs removed), `extraction_runs` summary, `audit_events`.
+  - `documents`, `extraction_runs` summary, `audit_events`.
 
 ## 7 Pipeline design (five stages)
 
@@ -264,7 +269,7 @@ Date 2025-12-23
 ### 7.6 Stage 5 — Consolidation, dual-path persistence, delivery prep
 
 - Persist canonical rows into `document_rows`.
-- Generate semantic chunks from normalized rows; create embeddings; persist in `documents` chunk rows.
+- Generate semantic chunks from normalized rows; create embeddings; persist in `document_chunks` chunk rows.
 - Atomicity rule:
   - If semantic path fails, mark run failed and do not expose partial results.
   - Compensating deletes for any partial writes.
@@ -272,6 +277,7 @@ Date 2025-12-23
   - Canonical JSON payload for API.
   - CSV generation inputs.
   - HTML view model for portal.
+- CSV files and HTML-rendered tables are generated on demand from `document_rows` and are not persisted as stored artefacts.
 
 ## 8 Non-functional requirements mapping
 

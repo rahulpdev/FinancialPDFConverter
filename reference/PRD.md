@@ -264,13 +264,13 @@ As the system I want outputs persisted in a dual-path RAG architecture and made 
 
 **Functional requirements**
 
-- H1 Dual-path RAG ingestion \- structured rows into `document_rows` with appropriate dataset/document identifiers, organisation scoping, and metadata \- semantic chunks plus embeddings into `documents`
+- H1 Dual-path RAG ingestion \- structured rows into `document_rows` with appropriate dataset/document identifiers, organisation scoping, and metadata \- semantic chunks plus embeddings into `document_chunks`
 - H2 Both paths must remain consistent \- ingestion must be atomic or compensating \- if semantic ingestion fails, mark run failed and do not expose partial results
 - H3 Prepare delivery artefacts \- JSON payload for API retrieval \- CSV generation for portal download \- HTML view model for portal rendering
 
 **Acceptance criteria**
 
-- H4 For a succeeded run (Extraction stage 4), `document_rows` and `documents` contain the expected records and share identifiers.
+- H4 For a succeeded run (Extraction stage 4), `document_rows` and `document_chunks` contain the expected records and share identifiers.
 - H5 For a sampled document, QA can join rows and chunks via identifiers and confirm consistency.
 
 Validation notes \- QA verifies both storage paths and consistency checks \- Logs flag any partial writes or failures in either path
@@ -349,7 +349,7 @@ As the client I want structured outputs deleted after (configurable) 10 days whi
 
 **Functional requirements**
 
-- L1 Structured outputs retention \- delete structured outputs after 10 days \- outputs include normalized JSON, CSV, HTML view model, `document_rows`, `documents`
+- L1 Structured outputs retention \- delete structured outputs after 10 days \- outputs include normalized JSON, CSV, HTML view model, `document_rows`, `document_chunks`
 - L2 Metadata retention \- retain all metadata permanently including document record, hashes, signatures, and run summaries
 - L3 No PDF persistence \- PDFs must not be stored to durable storage \- ephemeral scratch storage permitted only during processing and must be cleaned up
 - L4 Scheduled job \- idempotent \- observable \- logs each deletion batch with counts
