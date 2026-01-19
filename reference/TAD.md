@@ -2,25 +2,17 @@
 
 Financial PDFs Converter
 
-TAD Version 1.1
-Date 2025-12-23
+TAD Version 1.2
+Date 2025-01-17
 
 ## 1 Purpose and scope
 
 - Purpose: production-ready pilot architecture implementing PRD requirements.
 - Audience: engineers building and operating the pilot; future maintainers extending to vNext modules.
 - In scope:
-  - API-first PDF ingestion, async processing, results retrieval.
-  - Minimal pilot web portal (upload, history, progress indicator, results view, CSV download).
-  - Five-stage extraction engine (Stages 1–5), LLMWhisperer-only table extraction.
-  - Dual-path storage: exact rows in `document_rows`, semantic chunks + embeddings in `document_chunks`.
-  - Retention enforcement: structured outputs deleted after 10 days; metadata retained.
-  - Observability, security baseline, CI/CD, deployment, handover artifacts.
+  - See PRD Sections 5 and 6 for definitive in-scope requirements.
 - Out of scope:
-  - Durable storage of original PDFs.
-  - Alternative extraction providers or open-source fallback extraction provider during pilot.
-  - Billing/subscriptions, enterprise compliance artefacts, complex RBAC/SSO.
-  - XLSX outputs, downstream analytics (AML/DCF/ratios/projections).
+  - See PRD Sections 5 and 6 for definitive out-of-scope requirements.
 
 ## 2 Open decisions requiring confirmation (blocking)
 
@@ -30,16 +22,10 @@ Date 2025-12-23
 
 ## 3 Constraints and feasibility assessment
 
-### 3.1 Hard constraints (from PRD + Blueprint)
+### 3.1 Hard constraints
 
-- No durable PDF storage; transient handling only; guaranteed cleanup.
-- Structured outputs retained for max 10 days; metadata retained permanently.
-- LLMWhisperer is the only enabled table extraction provider for pilot.
-- Dual-path RAG design:
-  - Structured path: normalized rows in `document_rows`.
-  - Semantic path: text chunks + embeddings in `document_chunks` (pgvector).
+- Inherited from PRD Features A to L.
 - Vertical-slice architecture.
-- Per-organisation concurrency: at most one active extraction per `organisation_id`; FIFO for additional jobs.
 
 ### 3.2 Explicit trade-off decisions
 
@@ -129,10 +115,10 @@ Date 2025-12-23
 - `GET /api/v1/documents/{document_id}`
   - Auth: org API key.
   - Returns:
-    - If `succeeded`: `status=succeeded`, canonical JSON payload(s) + metadata.
-    - If `processing|queued`: `status=processing|queued`, retry guidance.
-    - If `failed`: `status=failed`, stable error code, high-level reason.
-    - If `expired`: `status=expired`, retention explanation.
+    - If `succeeded`: canonical JSON payload(s) + metadata.
+    - If `processing|queued`: retry guidance.
+    - If `failed`: stable error code, high-level reason.
+    - If `expired`: retention explanation.
 
 ### 5.2 Portal endpoints (thin)
 
@@ -220,7 +206,7 @@ Date 2025-12-23
 ### 6.3 Retention semantics
 
 - Structured outputs subject to deletion:
-  - `document_rows`, `document_chunks` semantic chunks, `raw_artefacts`, delivery artefact rows/fields.
+  - `document_rows`, `document_chunks` semantic chunks, `raw_artefacts`.
 - Metadata retained:
   - `documents`, `extraction_runs` summary, `audit_events`.
 
