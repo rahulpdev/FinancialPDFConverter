@@ -459,7 +459,6 @@ Enable users to upload PDFs via API and retrieve validated structured JSON outpu
 **Phase 1 exit criteria**
 
 - Pilot PDFs can be:
-
   - Uploaded via API,
   - Processed end-to-end through the five stages, and
   - Retrieved as validated normalised JSON within pipeline performance NFRs.
@@ -481,7 +480,6 @@ Allow users to use the system without writing code and give stakeholders a visib
 **Phase 2 exit criteria**
 
 - Operations and risk analysts can:
-
   - Log into portal,
   - Upload PDFs,
   - See document processing status and quality indicators, and
@@ -500,7 +498,6 @@ Operate the system reliably for the pilot, with sufficient monitoring, diagnosti
 - Complete and tune observability and operational features.
 
 - Define and document runbooks for:
-
   - Monitoring throughput, latency, and error rates.
   - Diagnosing and triaging failed documents.
   - Verifying retention and deletion behaviour.
@@ -509,7 +506,6 @@ Operate the system reliably for the pilot, with sufficient monitoring, diagnosti
 **Phase 3 exit criteria**
 
 - Pilot can run with:
-
   - Clear visibility of volumes, success/failure rates, and pipeline latency.
   - A repeatable process for investigating failures using logs and metadata.
   - Sufficient reporting to evaluate pilot success metrics and inform next-stage roadmap decisions.
@@ -521,21 +517,17 @@ Operate the system reliably for the pilot, with sufficient monitoring, diagnosti
 Each pilot goal is validated through explicit, predefined mechanisms. Not all goals are measured via runtime analytics.
 
 - **G1 Accuracy (≥99% field-level accuracy)**
-
   - Validated via a golden test set and spot checks on real pilot PDFs.
   - Evidence captured in QA reports and review logs, not user-facing analytics.
 
 - **G2 Time reduction (≥50%)**
-
   - Measured externally by the client using before/after baselines.
   - Not instrumented within the application.
 
 - **G3 Pilot adoption**
-
   - Validated via document counts, organisation activity, and confirmed pilot usage.
 
 - **G4 Commercial signals**
-
   - Validated qualitatively via client communications.
 
 ### 11.2 Operational monitoring flows
