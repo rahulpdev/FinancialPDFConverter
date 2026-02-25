@@ -6,6 +6,11 @@ __pycache__/
 *.pyc
 *.pyo
 
+# Coverage reports
+.coverage
+.coverage.*
+htmlcov/
+
 # Ignore this specific file
 .agents/reference/financial-dcf-system.md
 
