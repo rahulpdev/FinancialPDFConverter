@@ -37,7 +37,23 @@ indent-style = "space"
 line-ending = "auto"
 docstring-code-format = true
 
+[tool.mypy]
+python_version = "3.11"
+
+# Strict mode — enables all optional error-checking flags
+strict = true
+
+# Extra checks beyond strict
+warn_unreachable = true          # flag dead code after return/raise
+
+# AI-friendly error output: precise locations and machine-scannable codes
+show_error_codes = true          # e.g. [return-value], [arg-type]
+show_column_numbers = true       # exact character position
+show_error_context = true        # print the offending line
+pretty = true                    # aligned, readable output
+
 [dependency-groups]
 dev = [
+    "mypy>=1.19.1",
     "ruff>=0.15.2",
 ]
