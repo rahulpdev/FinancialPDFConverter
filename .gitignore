@@ -3,3 +3,6 @@
 
 # Ignore this specific file
 reference/financial-dcf-system.md
+
+# Claude Code local settings (machine-specific)
+.claude/settings.local.json
