@@ -2,7 +2,7 @@
 .DS_Store
 
 # Ignore this specific file
-reference/financial-dcf-system.md
+.agents/reference/financial-dcf-system.md
 
 # Claude Code local settings (machine-specific)
 .claude/settings.local.json
