@@ -1,6 +1,11 @@
 # macOS system files
 .DS_Store
 
+# Python bytecode
+__pycache__/
+*.pyc
+*.pyo
+
 # Ignore this specific file
 .agents/reference/financial-dcf-system.md
 
