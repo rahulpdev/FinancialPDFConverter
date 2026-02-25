@@ -52,8 +52,20 @@ show_column_numbers = true       # exact character position
 show_error_context = true        # print the offending line
 pretty = true                    # aligned, readable output
 
+[tool.pyright]
+pythonVersion = "3.11"
+
+# Strict mode — enables every diagnostic rule Pyright exposes
+typeCheckingMode = "strict"
+
+# Extra safety checks
+reportUninitializedInstanceVariable = "error"  # catch uninitialised attrs
+reportImplicitStringConcatenation = "error"     # adjacent string literals
+enableReachabilityAnalysis = true               # dead-code detection
+
 [dependency-groups]
 dev = [
     "mypy>=1.19.1",
+    "pyright>=1.1.408",
     "ruff>=0.15.2",
 ]
