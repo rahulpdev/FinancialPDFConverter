@@ -77,7 +77,7 @@ Ensure that:
 
 - No plaintext secrets/credentials are included.
 - No debug logs/temp files/environment-specific files are included.
-- If there are unrelated changes, stop and ask what should be included.
+- If there are unrelated changes, ask what should be included before proceeding.
 
 ### 4. Create Commit
 
