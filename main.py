@@ -4,6 +4,7 @@ Fully-annotated module used to validate mypy strict + pyright strict
 pass cleanly with no errors.
 """
 
+import asyncio
 import functools
 from collections.abc import Callable
 from dataclasses import dataclass, field
@@ -14,6 +15,7 @@ T = TypeVar("T")
 
 
 # ── Typed decorator using ParamSpec ──────────────────────────────────────────
+
 
 def log_call(func: Callable[P, T]) -> Callable[P, T]:
     """Log the name of any function before calling it."""
@@ -27,6 +29,7 @@ def log_call(func: Callable[P, T]) -> Callable[P, T]:
 
 
 # ── Domain model ─────────────────────────────────────────────────────────────
+
 
 def _empty_tags() -> list[str]:
     return []
@@ -43,6 +46,7 @@ class Document:
 
 
 # ── Pure typed functions ──────────────────────────────────────────────────────
+
 
 def summarise(docs: list[Document]) -> dict[str, int]:
     """Return a name → page_count mapping."""
@@ -72,7 +76,23 @@ def total_pages(docs: list[Document]) -> int:
     return sum(d.page_count for d in docs)
 
 
+# ── Async I/O simulation ─────────────────────────────────────────────────────
+
+
+async def fetch_document(path: str) -> Document | None:
+    """Simulate async document retrieval (e.g., from object storage).
+
+    Returns None if *path* does not point to a PDF file.
+    """
+    await asyncio.sleep(0)  # yield to event loop — represents network/disk I/O
+    name = path.split("/")[-1]
+    if not name.endswith(".pdf"):
+        return None
+    return Document(name=name, page_count=0, file_path=path)
+
+
 # ── Entry point ───────────────────────────────────────────────────────────────
+
 
 @log_call
 def main() -> None:
@@ -87,7 +107,9 @@ def main() -> None:
         print(f"  {name}: {pages} pages")
 
     finance_docs: list[Document] = filter_tagged("finance", docs)
-    print(f"Finance docs: {len(finance_docs)}, total pages: {total_pages(finance_docs)}")
+    print(
+        f"Finance docs: {len(finance_docs)}, total pages: {total_pages(finance_docs)}"
+    )
 
     count: int = page_count("invoice_001.pdf", docs)
     print(f"invoice_001.pdf page count: {count}")
