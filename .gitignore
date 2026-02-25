@@ -6,3 +6,6 @@
 
 # Claude Code local settings (machine-specific)
 .claude/settings.local.json
+
+# Agent library docs
+.agents/docs/
