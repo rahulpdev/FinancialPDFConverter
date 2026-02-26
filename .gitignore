@@ -11,6 +11,12 @@ __pycache__/
 .coverage.*
 htmlcov/
 
+# Tool caches
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
+.pyright/
+
 # Ignore this specific file
 .agents/reference/financial-dcf-system.md
 
