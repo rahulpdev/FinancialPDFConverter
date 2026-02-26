@@ -18,7 +18,7 @@ htmlcov/
 .pyright/
 
 # Ignore this specific file
-.agents/reference/financial-dcf-system.md
+.agents/financial-dcf-system.md
 
 # Claude Code local settings (machine-specific)
 .claude/settings.local.json
