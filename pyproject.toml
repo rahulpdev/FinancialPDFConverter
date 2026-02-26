@@ -4,7 +4,9 @@ version = "0.1.0"
 description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.11"
-dependencies = []
+dependencies = [
+    "structlog>=25.5.0",
+]
 
 [tool.ruff]
 target-version = "py311"
@@ -57,8 +59,8 @@ pretty = true                    # aligned, readable output
 asyncio_mode = "auto"
 # Explicit fixture loop scope suppresses the deprecation warning
 asyncio_default_fixture_loop_scope = "function"
-testpaths = ["tests"]
-addopts = "--cov=main --cov-report=term-missing --tb=short"
+testpaths = ["tests", "app"]
+addopts = "--cov=main --cov=app --cov-report=term-missing --tb=short"
 
 [tool.pyright]
 pythonVersion = "3.11"
