@@ -1,10 +1,14 @@
 """Tests for main.py — covers sync functions and async fetch_document."""
 
+import pytest
+
 from main import (
     Document,
     fetch_document,
     filter_tagged,
     find,
+    log_call,
+    main,
     page_count,
     summarise,
     total_pages,
@@ -98,6 +102,55 @@ class TestTotalPages:
 
     def test_empty_collection_returns_zero(self) -> None:
         assert total_pages([]) == 0
+
+
+# ── log_call decorator ───────────────────────────────────────────────────────
+
+
+class TestLogCall:
+    def test_prints_function_name(self, capsys: pytest.CaptureFixture[str]) -> None:
+        @log_call
+        def sample() -> int:
+            return 42
+
+        sample()
+        assert "→ sample" in capsys.readouterr().out
+
+    def test_preserves_return_value(self) -> None:
+        @log_call
+        def add(x: int, y: int) -> int:
+            return x + y
+
+        assert add(2, 3) == 5
+
+    def test_preserves_function_name(self) -> None:
+        @log_call
+        def named_fn() -> None:
+            pass
+
+        assert named_fn.__name__ == "named_fn"
+
+
+# ── main() ────────────────────────────────────────────────────────────────────
+
+
+class TestMain:
+    def test_runs_without_error(self, capsys: pytest.CaptureFixture[str]) -> None:
+        main()
+        out = capsys.readouterr().out
+        assert "invoice_001.pdf" in out
+        assert "statement_q1.pdf" in out
+        assert "contract_nda.pdf" in out
+
+    def test_prints_finance_summary(self, capsys: pytest.CaptureFixture[str]) -> None:
+        main()
+        assert "Finance docs: 2" in capsys.readouterr().out
+
+    def test_prints_invoice_page_count(
+        self, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        main()
+        assert "invoice_001.pdf page count: 3" in capsys.readouterr().out
 
 
 # ── fetch_document (async) ────────────────────────────────────────────────────
