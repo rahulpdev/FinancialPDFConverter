@@ -1,0 +1,42 @@
+# Virtual environments — never copy host venv into Docker context
+.venv/
+
+# Python cache directories
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.python-version
+
+# Type-checker and linter caches
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
+.pyright/
+
+# Git
+.git/
+.gitignore
+.gitattributes
+
+# Environment files
+.env
+.env.*
+!.env.example
+
+# Docker files (not needed inside the image)
+Dockerfile
+.dockerignore
+docker-compose.yml
+docker-compose.*.yml
+
+# Test artefacts and coverage reports
+.coverage
+htmlcov/
+
+# Editor / OS
+.DS_Store
+.vscode/
+.idea/
+*.swp
+*.swo

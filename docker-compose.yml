@@ -1,0 +1,32 @@
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8123:8123"
+    # Mount project source for live editing in development.
+    # The anonymous volume on /app/.venv preserves the container's
+    # virtual environment and prevents the host mount from overwriting it.
+    volumes:
+      - .:/app
+      - /app/.venv
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      PYTHONUNBUFFERED: "1"
+    # Compose Watch — fine-grained file sync without full rebuilds.
+    develop:
+      watch:
+        - action: sync
+          path: .
+          target: /app
+          ignore:
+            - .venv/
+            - __pycache__/
+            - "*.pyc"
+        - action: rebuild
+          path: ./pyproject.toml
+        - action: rebuild
+          path: ./uv.lock
