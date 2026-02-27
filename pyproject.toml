@@ -1,17 +1,24 @@
 [project]
-name = "financialpdfconverter"
+name = "vsa-fastapi-project"
 version = "0.1.0"
-description = "Add your description here"
+description = "FastAPI + PostgreSQL starter with vertical slice architecture, optimized for AI coding"
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
+    "fastapi>=0.133.1",
+    "pydantic-settings>=2.13.1",
+    "python-dotenv>=1.2.1",
     "structlog>=25.5.0",
+    "uvicorn[standard]>=0.41.0",
 ]
 
 [tool.ruff]
 target-version = "py311"
 line-length = 88
 indent-width = 4
+
+[tool.ruff.lint.isort]
+known-first-party = ["app"]
 
 [tool.ruff.lint]
 # Broad rule set — maximises what AI can detect and auto-correct
@@ -75,6 +82,7 @@ enableReachabilityAnalysis = true               # dead-code detection
 
 [dependency-groups]
 dev = [
+    "httpx>=0.28.1",
     "mypy>=1.19.1",
     "pyright>=1.1.408",
     "pytest>=9.0.2",

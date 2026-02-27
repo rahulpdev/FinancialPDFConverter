@@ -1,45 +1,57 @@
-"""Example: structured logging with the hybrid dotted namespace pattern.
+"""FastAPI application entry point."""
 
-Pattern: {domain}.{component}.{action}_{state}
+from __future__ import annotations
 
-States: _started, _completed, _failed, _validated, _rejected
-"""
+from collections.abc import AsyncGenerator
+from contextlib import asynccontextmanager
 
-from app.core.logging import get_logger, set_request_id, setup_logging
+from fastapi import FastAPI
 
-
-def process_document(doc_name: str) -> None:
-    """Convert a PDF document with structured log events at each step."""
-    logger = get_logger(__name__)
-    logger.info("pdf.processor.conversion_started", document=doc_name)
-    try:
-        # Simulate processing
-        pages = 10
-        logger.info(
-            "pdf.processor.conversion_completed",
-            document=doc_name,
-            pages=pages,
-        )
-    except Exception:
-        logger.exception(
-            "pdf.processor.conversion_failed",
-            document=doc_name,
-        )
+from app.core.config import get_settings
+from app.core.logging import get_logger, setup_logging
+from app.core.middleware import setup_middleware
 
 
-def main() -> None:
-    """Demonstrate structured logging with request-ID correlation."""
-    setup_logging()
-    request_id = set_request_id()
+@asynccontextmanager
+async def lifespan(_app: FastAPI) -> AsyncGenerator[None, None]:
+    """Manage application startup and shutdown."""
+    settings = get_settings()
+    setup_logging(log_level=settings.log_level)
 
     logger = get_logger(__name__)
-    logger.info("app.lifecycle.startup_started", request_id=request_id)
+    logger.info("application.startup", environment=settings.environment)
 
-    process_document("invoice_001.pdf")
-    process_document("statement_q1.pdf")
+    yield
 
-    logger.info("app.lifecycle.startup_completed")
+    logger.info("application.shutdown")
 
 
-if __name__ == "__main__":
-    main()  # pragma: no cover
+def create_app() -> FastAPI:
+    """Create and configure the FastAPI application."""
+    settings = get_settings()
+
+    app = FastAPI(
+        title=settings.app_name,
+        version=settings.version,
+        lifespan=lifespan,
+    )
+
+    setup_middleware(app)
+
+    @app.get("/")
+    async def root() -> dict[str, str]:  # pyright: ignore[reportUnusedFunction]
+        return {
+            "message": settings.app_name,
+            "version": settings.version,
+            "docs": "/docs",
+        }
+
+    return app
+
+
+app = create_app()
+
+if __name__ == "__main__":  # pragma: no cover
+    import uvicorn
+
+    uvicorn.run("app.main:app", host="0.0.0.0", port=8123, reload=True)
