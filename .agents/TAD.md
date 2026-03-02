@@ -41,6 +41,9 @@ Date 2025-01-17
 - **Embeddings on ingest, feature-flagged**
   - Default ON to match dual-path contract; allow OFF for performance/cost tuning.
   - Trade-off: risk of higher latency/cost; avoids future backfill burden.
+- **Dual-path translation in Stage 4 (hybrid parsing)**
+  - Alternatives: single Pydantic AI translation path only.
+  - Trade-off: higher implementation complexity; stronger output trust via independent-path agreement; catches drift and edge cases that schema validation and cross-check rulesets alone may miss.
 - **Portal is pilot-thin, admin-oriented**
   - No per-user roles; optional nullable `user_id` for future audit.
   - Trade-off: limited audit granularity; faster pilot delivery.
@@ -83,7 +86,7 @@ Date 2025-01-17
 - `src/extraction_stage1/` (input discovery + run registration)
 - `src/extraction_stage2/` (table detection and table-map)
 - `src/extraction_stage3/` (LLMWhisperer extraction, retries, raw artefacts)
-- `src/extraction_stage4/` (normalisation, schema mapping, Pydantic validation)
+- `src/extraction_stage4/` (dual-method translation, discrepancy comparison, schema mapping, Pydantic validation)
 - `src/extraction_stage5/` (dual-path persistence, delivery artefact prep)
 - `src/results/` (results API, CSV generation, HTML view models)
 - `src/portal/` (minimal UI pages, server handlers)
@@ -242,8 +245,8 @@ Date 2025-01-17
 
 ### 7.5 Stage 4 — Normalisation and schema mapping
 
-- Translate raw provider outputs using Pydantic AI, producing structured JSON representations.
-- Resolve statement metadata and validate translated outputs against canonical Pydantic schemas by document family; run deterministic, format-specific cross-check rulesets for company accounts; write `validation_report` at Stage 4 end for every run that completes Stage 4.
+- Translate raw provider outputs using two independent paths: a deterministic rule-based parser and a Pydantic AI translation path; compare outputs and select a primary result using a documented selection policy, recording comparison results in `validation_report`.
+- Resolve statement metadata and validate the selected output against canonical Pydantic schemas by document family; run deterministic, format-specific cross-check rulesets for company accounts; write `validation_report` at Stage 4 end for every run that completes Stage 4.
 - Numeric precision: decimal/fixed precision only.
 - Unknown labels preserved + flagged; mapping notes stored.
 
@@ -433,9 +436,9 @@ All codes follow the format `STAGE{N}_{CATEGORY}_{DETAIL}`. The `retryable` flag
 
 ## Appendix B — Raw artefact content specification
 
-| Artefact type       | Mandatory | When written            | Required contents (minimum)                                                                                                                             |
-| ------------------- | --------- | ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `provider_output`   | Yes       | Stage 3, per table      | Provider request id(s), raw provider payload, page range/table id, timing, retry count.                                                                 |
-| `table_map`         | Yes       | End of Stage 2, per run | Table list with page/bounds identifiers, detection confidence/warnings, doc-type assumption.                                                            |
-| `debug`             | No        | Any stage, as needed    | Redacted diagnostics snapshot (stage inputs/outputs, config flags, timing).                                                                             |
-| `validation_report` | Yes       | End of Stage 4, per run | Schema validation outcome, required statement metadata resolution status, row counts per table, unmapped/flagged label counts, validation warnings, cross-check discrepancies (company accounts only). |
+| Artefact type       | Mandatory | When written            | Required contents (minimum)                                                                                                                                                                                                                                                                                                       |
+| ------------------- | --------- | ----------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `provider_output`   | Yes       | Stage 3, per table      | Provider request id(s), raw provider payload, page range/table id, timing, retry count.                                                                                                                                                                                                                                           |
+| `table_map`         | Yes       | End of Stage 2, per run | Table list with page/bounds identifiers, detection confidence/warnings, doc-type assumption.                                                                                                                                                                                                                                      |
+| `debug`             | No        | Any stage, as needed    | Redacted diagnostics snapshot (stage inputs/outputs, config flags, timing).                                                                                                                                                                                                                                                       |
+| `validation_report` | Yes       | End of Stage 4, per run | Translation-path success/failure, comparison outcome (agreement count, discrepancy count and list, selected primary path), schema validation outcome, required statement metadata resolution status, row counts per table, unmapped/flagged label counts, validation warnings, cross-check discrepancies (company accounts only). |

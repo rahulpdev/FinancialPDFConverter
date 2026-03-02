@@ -239,17 +239,17 @@ As a downstream consumer I want extracted data normalized into canonical schemas
 
 **Functional requirements**
 
-- G1 Translate LLMWhisperer raw output to semi-structured JSON using Pydantic AI.
+- G1 Translate LLMWhisperer raw output using two independent paths: a deterministic rule-based parser (reproducible, no model dependency) and a Pydantic AI path (flexible layout handling). Compare outputs and select a primary result using a documented selection policy.
 - G2 Validate and enforce all structured outputs using Pydantic schemas, ensuring type safety, required fields and numeric precision
 - G3 Canonical schemas \- company accounts schema (e.g. income statement, balance sheet, cash flow by period) \- bank statement schema (e.g. transactions with date, description, amount, currency)
 - G4 Resolve and normalise statement metadata \- entity_name \- entity_identifier optional \- statement_period_start \- statement_period_end \- currency \- numeric parsing as decimal fixed precision
-- G5 Provide per-row confidence and mapping notes, including deterministic cross-check outcomes for company accounts using format-specific rulesets.
+- G5 Provide per-row confidence and mapping notes, including translation-path comparison outcome (agreement count, discrepancy count and list, selected primary path) and deterministic cross-check outcomes for company accounts using format-specific rulesets.
 - G6 Handle unknown labels \- preserve source label \- map to canonical when confident \- flag unmapped labels for inspection
 
 **Acceptance criteria**
 
 - G7 All semi-structured JSON outputs validate against canonical Pydantic schemas.
-- G8 Schema validation outcomes are logged with clear diagnostics and written to a `validation_report` raw artefact. A document cannot be marked `succeeded` unless entity_name, currency, statement_period_start, and statement_period_end are resolved.
+- G8 Schema validation outcomes are logged with clear diagnostics and written to a `validation_report` raw artefact, which includes translation-path success/failure, comparison outcome, selected primary path, schema validation outcome, and required metadata resolution status. A document cannot be marked `succeeded` unless entity_name, currency, statement_period_start, and statement_period_end are resolved.
 - G9 All financial amounts are stored and returned using decimal fixed precision representations.
 
 Validation notes \- QA runs schema validation tests on golden dataset \- Logs record specific validation errors that include distinguishing Pydantic AI translation and Pydantic validation failures.
