@@ -155,6 +155,7 @@ Date 2025-01-17
   - `document_type_hint` (nullable), `customer_reference` (nullable)
   - `status` (enum), `created_at`, `updated_at`, `deleted_at` (soft delete)
   - PDF metadata: `filename`, `size_bytes`, `content_hash`, `page_count`, `pdf_version`
+  - Statement metadata (nullable until extraction resolves): `entity_name`, `entity_identifier` (nullable), `statement_period_start`, `statement_period_end`, `currency`
   - QA flags: `scan_suspected`, `embedded_js_present`, `signature_present`, `xmp_present`
   - Retention: `expires_at`, `expired_at`.
 
@@ -167,14 +168,18 @@ Date 2025-01-17
   - `id`, `document_id`, `organisation_id`, `user_id` (nullable)
   - `status`, `started_at`, `finished_at`
   - Stage timings: `stage1_ms`..`stage5_ms`
+  - Statement metadata snapshot (nullable until resolved): `entity_name`, `statement_period_start`, `statement_period_end`, `currency`
   - Provider fields: `llmwhisperer_request_ids[]`, `retry_count`
   - Quality: `quality_score`, `accuracy_sampled_bool` (optional)
   - Failure: `error_code`, `error_summary`, `retryable_bool`
   - Usage: `virtual_tokens_in`, `virtual_tokens_out`.
 
+- `document_statements` (statement headers; persistence gate)
+  - `id`, `document_id`, `organisation_id`, `schema_family` (accounts|bank), `table_name`, `entity_name` (NOT NULL), `currency` (NOT NULL), `statement_period_start` (NOT NULL), `statement_period_end` (NOT NULL), `entity_identifier` (nullable), `created_at`, `deleted_at`, `expires_at`.
+
 - `document_rows` (structured path)
   - `id`, `document_id`, `organisation_id`, `schema_family` (accounts|bank)
-  - `table_name`, `row_index`, `row_json` (canonical; accounts rows include `indent_level`, `row_type`, `parent_row_index` (optional))
+  - `statement_id`, `table_name`, `row_index`, `row_json` (canonical; accounts rows include `indent_level`, `row_type`, `parent_row_index` (optional))
   - `source_page_range` (optional), `confidence` (optional)
   - `created_at`, `deleted_at`, `expires_at`.
 
@@ -218,6 +223,7 @@ Date 2025-01-17
 - Create `extraction_runs` row (unless served from cache).
 - Capture PDF metadata and QA flags.
 - Determine processing plan (doc type from hint, heuristic validation or warning only).
+- Best-effort inference of entity_name, statement_period_start, statement_period_end and currency for logging and downstream hints; values may be null.
 - Emit `correlation_id` for all subsequent logs.
 
 ### 7.3 Stage 2 — Table detection
@@ -236,13 +242,13 @@ Date 2025-01-17
 ### 7.5 Stage 4 — Normalisation and schema mapping
 
 - Translate raw provider outputs using Pydantic AI, producing structured JSON representations.
-- Validate translated outputs against canonical Pydantic schemas by document family; run deterministic, format-specific cross-check rulesets for company accounts; write `validation_report` at Stage 4 end for every run that completes Stage 4.
+- Resolve statement metadata and validate translated outputs against canonical Pydantic schemas by document family; run deterministic, format-specific cross-check rulesets for company accounts; write `validation_report` at Stage 4 end for every run that completes Stage 4.
 - Numeric precision: decimal/fixed precision only.
 - Unknown labels preserved + flagged; mapping notes stored.
 
 ### 7.6 Stage 5 — Consolidation, dual-path persistence, delivery prep
 
-- Persist canonical rows into `document_rows`.
+- Persist statement headers into `document_statements` (required metadata is NOT NULL), then persist canonical rows into `document_rows` within the same transaction.
 - Generate semantic chunks from normalized rows; create embeddings; persist in `document_chunks` chunk rows.
 - Atomicity rule:
   - If semantic path fails, mark run failed and do not expose partial results.
@@ -431,4 +437,4 @@ All codes follow the format `STAGE{N}_{CATEGORY}_{DETAIL}`. The `retryable` flag
 | `provider_output`   | Yes       | Stage 3, per table      | Provider request id(s), raw provider payload, page range/table id, timing, retry count.                                                                 |
 | `table_map`         | Yes       | End of Stage 2, per run | Table list with page/bounds identifiers, detection confidence/warnings, doc-type assumption.                                                            |
 | `debug`             | No        | Any stage, as needed    | Redacted diagnostics snapshot (stage inputs/outputs, config flags, timing).                                                                             |
-| `validation_report` | Yes       | End of Stage 4, per run | Schema validation outcome, row counts per table, unmapped/flagged label counts, validation warnings, cross-check discrepancies (company accounts only). |
+| `validation_report` | Yes       | End of Stage 4, per run | Schema validation outcome, required statement metadata resolution status, row counts per table, unmapped/flagged label counts, validation warnings, cross-check discrepancies (company accounts only). |

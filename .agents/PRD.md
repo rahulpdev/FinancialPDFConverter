@@ -167,12 +167,13 @@ As the system I want to identify document properties and prepare an extraction r
 - D1 Create an extraction run record.
 - D2 Capture document metadata \- hash \- digital signatures if present \- XMP metadata if present \- embedded JS flag if present \- PDF version \- page count \- suspected scan quality flags
 - D3 Determine processing plan \- document type from hint with heuristic validation or warning \- page ranges
-- D4 Emit correlation id used across all stages.
+- D4 Best-effort inference of statement metadata (nullable at this stage) \- entity_name \- entity_identifier optional \- statement_period_start \- statement_period_end \- currency
+- D5 Emit correlation id used across all stages.
 
 **Acceptance criteria**
 
-- D5 A run record exists in a transactions-style table before calling any extraction provider.
-- D6 Metadata fields populate when present and missing fields do not fail the run.
+- D6 A run record exists in a transactions-style table before calling any extraction provider.
+- D7 Metadata fields populate when present and missing fields do not fail the run.
 
 Validation notes \- QA verifies records and logs for stage boundaries.
 
@@ -241,14 +242,14 @@ As a downstream consumer I want extracted data normalized into canonical schemas
 - G1 Translate LLMWhisperer raw output to semi-structured JSON using Pydantic AI.
 - G2 Validate and enforce all structured outputs using Pydantic schemas, ensuring type safety, required fields and numeric precision
 - G3 Canonical schemas \- company accounts schema (e.g. income statement, balance sheet, cash flow by period) \- bank statement schema (e.g. transactions with date, description, amount, currency)
-- G4 Normalize formats \- dates \- currency codes at metadata level \- numeric parsing as decimal fixed precision
+- G4 Resolve and normalise statement metadata \- entity_name \- entity_identifier optional \- statement_period_start \- statement_period_end \- currency \- numeric parsing as decimal fixed precision
 - G5 Provide per-row confidence and mapping notes, including deterministic cross-check outcomes for company accounts using format-specific rulesets.
 - G6 Handle unknown labels \- preserve source label \- map to canonical when confident \- flag unmapped labels for inspection
 
 **Acceptance criteria**
 
 - G7 All semi-structured JSON outputs validate against canonical Pydantic schemas.
-- G8 Schema validation outcomes are logged with clear diagnostics and written to a `validation_report` raw artefact; failures mark the document failed or partially successful.
+- G8 Schema validation outcomes are logged with clear diagnostics and written to a `validation_report` raw artefact. A document cannot be marked `succeeded` unless entity_name, currency, statement_period_start, and statement_period_end are resolved.
 - G9 All financial amounts are stored and returned using decimal fixed precision representations.
 
 Validation notes \- QA runs schema validation tests on golden dataset \- Logs record specific validation errors that include distinguishing Pydantic AI translation and Pydantic validation failures.
@@ -290,7 +291,7 @@ As a client I want to retrieve results by document id so that I can feed structu
 
 **Acceptance criteria**
 
-- I4 A completed document can be retrieved as JSON with correct schema and basic metadata, HTTP status codes and headers.
+- I4 A completed document can be retrieved as JSON with correct schema and statement metadata (entity_name, currency, statement_period_start, statement_period_end), HTTP status codes and headers.
 - I5 Portal downloads generate valid CSV files matching the underlying data.
 - I6 An expired document returns a clear error code and does not return structured data.
 - I7 Requests for documents belonging to another organisation are rejected with clear error code.
@@ -568,6 +569,8 @@ The following items are explicitly out of scope for pilot delivery but should be
 - Extended document types beyond company accounts and bank statements.
 - Resumable or long-running extraction jobs across client refreshes.
 - Job cancellation for in-flight extractions.
+- Multi-period consolidated accounts for company accounts across separately-uploaded documents for the same entity within an organisation, aligning line items across periods using fuzzy matching.
+- Multi-period statement tracking for bank statements across separately-uploaded documents for the same account or entity within an organisation.
 - Advanced analytics, financial modelling, or downstream decisioning modules.
 - Per-user role management, SSO, or enterprise access controls.
 - Long-term data retention or archival strategies beyond the fixed pilot window.
