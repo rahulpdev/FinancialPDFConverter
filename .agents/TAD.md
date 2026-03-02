@@ -92,7 +92,7 @@ Date 2025-01-17
 
 ### 4.3 Data flow
 
-1. Ingest via API/portal → validate → create `documents` row (metadata-only) + create `extraction_runs` row.
+1. Ingest via API/portal → validate → compute `content_hash`; on cache hit (same org, `succeeded` within retention) return existing `document_id`, otherwise create `documents` row (metadata-only) + create `extraction_runs` row.
 2. Persist job state (`queued`) and enqueue into per-org FIFO scheduler.
 3. Worker executes five stages; updates `extraction_runs` and `documents.status`.
 4. Stage 5 writes:
@@ -107,10 +107,9 @@ Date 2025-01-17
 ### 5.1 External API endpoints
 
 - `POST /api/v1/documents`
-
   - Auth: org API key.
   - Body: multipart PDF upload OR JSON with `file_url`.
-  - Returns: `document_id`, `status=queued`, warnings.
+  - Returns: `document_id`, `status=queued` (or `succeeded` on cache hit), warnings.
 
 - `GET /api/v1/documents/{document_id}`
   - Auth: org API key.
@@ -146,15 +145,12 @@ Date 2025-01-17
 ### 6.1 Core tables
 
 - `organisations`
-
   - `id`, `name`, `created_at`.
 
 - `api_keys`
-
   - `id`, `organisation_id`, `key_hash`, `created_at`, `revoked_at`, `last_used_at`.
 
 - `documents`
-
   - `id`, `organisation_id`, `user_id` (nullable), `source_channel` (api|portal), `environment` (sandbox|production)
   - `document_type_hint` (nullable), `customer_reference` (nullable)
   - `status` (enum), `created_at`, `updated_at`, `deleted_at` (soft delete)
@@ -163,13 +159,11 @@ Date 2025-01-17
   - Retention: `expires_at`, `expired_at`.
 
 - `document_chunks` (semantic path)
-
   - `id`, `organisation_id`, `document_id`,
   - Semantic fields (for chunks): `chunk_index`, `chunk_text`, `embedding` (vector), `embedding_model`, `embedding_dim`
   - `created_at`, `expires_at`, `deleted_at`
 
 - `extraction_runs` (transactions-style)
-
   - `id`, `document_id`, `organisation_id`, `user_id` (nullable)
   - `status`, `started_at`, `finished_at`
   - Stage timings: `stage1_ms`..`stage5_ms`
@@ -179,15 +173,13 @@ Date 2025-01-17
   - Usage: `virtual_tokens_in`, `virtual_tokens_out`.
 
 - `document_rows` (structured path)
-
   - `id`, `document_id`, `organisation_id`, `schema_family` (accounts|bank)
-  - `table_name`, `row_index`, `row_json` (canonical)
+  - `table_name`, `row_index`, `row_json` (canonical; accounts rows include `indent_level`, `row_type`, `parent_row_index` (optional))
   - `source_page_range` (optional), `confidence` (optional)
   - `created_at`, `deleted_at`, `expires_at`.
 
 - `raw_artefacts` (pilot-safe raw outputs)
-
-  - `id`, `document_id`, `extraction_run_id`, `artefact_type` (provider_output|table_map|debug)
+  - `id`, `document_id`, `extraction_run_id`, `artefact_type` (provider_output|table_map|debug|validation_report)
   - `payload_json` (compressed) or `payload_text` (size bounded)
   - `created_at`, `expires_at` (treated as structured output; deleted by retention job).
 
@@ -223,7 +215,7 @@ Date 2025-01-17
 
 ### 7.2 Stage 1 — Input discovery and run registration
 
-- Create `extraction_runs` row.
+- Create `extraction_runs` row (unless served from cache).
 - Capture PDF metadata and QA flags.
 - Determine processing plan (doc type from hint, heuristic validation or warning only).
 - Emit `correlation_id` for all subsequent logs.
@@ -244,7 +236,7 @@ Date 2025-01-17
 ### 7.5 Stage 4 — Normalisation and schema mapping
 
 - Translate raw provider outputs using Pydantic AI, producing structured JSON representations.
-- Validate translated outputs against canonical Pydantic schemas by document family.
+- Validate translated outputs against canonical Pydantic schemas by document family; run deterministic, format-specific cross-check rulesets for company accounts; write `validation_report` at Stage 4 end for every run that completes Stage 4.
 - Numeric precision: decimal/fixed precision only.
 - Unknown labels preserved + flagged; mapping notes stored.
 
@@ -284,7 +276,7 @@ Date 2025-01-17
 ### 8.3 Reliability and recovery
 
 - Idempotency:
-  - Content hash used for optional duplicate detection.
+  - Content hash used to short-circuit re-extraction within retention window (org-scoped).
   - Retriable stages capture attempt counters.
 - Restart recovery:
   - DB-backed job states solely for observability, failure marking, and auditability.
@@ -373,7 +365,7 @@ Date 2025-01-17
 - Deploy and rollback steps.
 - Failure triage:
   - Identify stage failure from `extraction_runs`.
-  - Inspect logs and `raw_artefacts` within retention window.
+  - Use runbook SQL queries to pull `documents`, `extraction_runs`, and `raw_artefacts` for a single failure, within retention window.
 - Retention verification.
 - Pilot metrics SQL queries.
 
@@ -385,3 +377,58 @@ Date 2025-01-17
 - Feature I → results slice + CSV generation.
 - Feature J/K → logs/metadata/audit + transactions-style `extraction_runs`.
 - Feature L → retention job + expired behavior.
+
+## Appendix A — Error code taxonomy
+
+All codes follow the format `STAGE{N}_{CATEGORY}_{DETAIL}`. The `retryable` flag indicates whether the system should attempt automatic retry without a change to the request or configuration.
+
+| Error code                            | Retryable | Meaning                                                                                          |
+| ------------------------------------- | --------- | ------------------------------------------------------------------------------------------------ |
+| STAGE0_AUTH_INVALID_KEY               | No        | API key missing or invalid.                                                                      |
+| STAGE0_AUTH_FORBIDDEN                 | No        | Cross-org access denied by auth or RLS.                                                          |
+| STAGE0_DB_UNAVAILABLE                 | Yes       | Database unavailable during auth, ingestion, or results retrieval.                               |
+| STAGE0_KILL_SWITCH_ENABLED            | No        | Extraction blocked by KILL_SWITCH_EXTRACTION feature flag; no retry until flag is cleared.       |
+| STAGE0_INPUT_NOT_PDF                  | No        | Input is not a PDF.                                                                              |
+| STAGE0_INPUT_TOO_LARGE                | No        | Input exceeds configured size limit.                                                             |
+| STAGE0_INPUT_ENCRYPTED                | No        | PDF is encrypted or password protected.                                                          |
+| STAGE0_INPUT_URL_FETCH_FAILED         | Yes       | File URL could not be fetched or timed out.                                                      |
+| STAGE0_DUPLICATE_ACTIVE_EXTRACTION    | No        | Same content hash already has an active (not yet succeeded) extraction in progress for this org. |
+| STAGE0_RATE_LIMITED                   | Yes       | Per-org API rate limit exceeded; retry after the indicated interval.                             |
+| STAGE0_DOCUMENT_EXPIRED               | No        | Document structured outputs deleted after retention window; 410 returned.                        |
+| STAGE0_DOCUMENT_NOT_FOUND             | No        | Document ID does not exist or belongs to another organisation.                                   |
+| STAGE0_CSV_EXPORT_FAILED              | Yes       | On-demand CSV generation failed for a succeeded document.                                        |
+| STAGE0_HTML_RENDER_FAILED             | Yes       | On-demand HTML rendering failed for a succeeded document.                                        |
+| STAGE0_RETENTION_JOB_FAILED           | Yes       | Scheduled retention deletion job failed during a batch run.                                      |
+| STAGE1_RUN_REGISTRATION_FAILED        | Yes       | Failed to create run record or persist stage-1 metadata.                                         |
+| STAGE1_ENQUEUE_FAILED                 | Yes       | Failed to enqueue job into per-org FIFO scheduler after run registration.                        |
+| STAGE1_CONCURRENCY_GUARD_FAILED       | Yes       | Per-org concurrency guard check failed unexpectedly (distinct from normal FIFO queuing).         |
+| STAGE1_METADATA_PARSE_FAILED          | No        | PDF metadata extraction failed in a non-retryable way.                                           |
+| STAGE2_TABLE_DETECTION_FAILED         | Yes       | Table detection tool failed unexpectedly.                                                        |
+| STAGE2_NO_RELEVANT_TABLES_FOUND       | No        | No relevant statement tables detected for declared document type.                                |
+| STAGE2_TABLE_MAP_WRITE_FAILED         | Yes       | Failed to persist table_map artefact after detection completed.                                  |
+| STAGE3_PROVIDER_TIMEOUT               | Yes       | LLMWhisperer call timed out.                                                                     |
+| STAGE3_PROVIDER_RATE_LIMITED          | Yes       | LLMWhisperer per-minute rate limit exceeded.                                                     |
+| STAGE3_PROVIDER_QUOTA_EXCEEDED        | No        | LLMWhisperer account quota exhausted; requires quota resolution before retrying.                 |
+| STAGE3_PROVIDER_AUTH_FAILED           | No        | LLMWhisperer rejected our API key; requires credential check before retrying.                    |
+| STAGE3_PROVIDER_BAD_REQUEST           | No        | LLMWhisperer rejected our request as malformed; requires request fix before retrying.            |
+| STAGE3_PROVIDER_INTERNAL_ERROR        | Yes       | LLMWhisperer returned a 5xx server-side error.                                                   |
+| STAGE3_PROVIDER_UNAVAILABLE           | Yes       | LLMWhisperer unavailable or unreachable.                                                         |
+| STAGE3_PROVIDER_BAD_RESPONSE          | Yes       | LLMWhisperer response was malformed or unparseable.                                              |
+| STAGE3_PROVIDER_OUTPUT_WRITE_FAILED   | Yes       | Failed to persist provider_output artefact for a table.                                          |
+| STAGE3_RETRY_EXHAUSTED                | No        | Bounded retries exhausted for a transient provider failure.                                      |
+| STAGE4_TRANSLATION_FAILED             | No        | Pydantic AI translation failed for the provider output.                                          |
+| STAGE4_SCHEMA_VALIDATION_FAILED       | No        | Canonical schema validation failed.                                                              |
+| STAGE4_NUMERIC_PARSE_FAILED           | No        | Numeric parsing or normalisation failed.                                                         |
+| STAGE4_VALIDATION_REPORT_WRITE_FAILED | Yes       | Failed to persist validation_report artefact at end of Stage 4.                                  |
+| STAGE5_DB_WRITE_FAILED                | Yes       | Failed to persist canonical rows or chunks to document_rows or document_chunks.                  |
+| STAGE5_EMBEDDINGS_PROVIDER_FAILED     | Yes       | Embeddings provider call failed.                                                                 |
+| STAGE5_ATOMICITY_VIOLATION            | Yes       | Partial-write detected across dual paths; compensating deletes required.                         |
+
+## Appendix B — Raw artefact content specification
+
+| Artefact type       | Mandatory | When written            | Required contents (minimum)                                                                                                                             |
+| ------------------- | --------- | ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `provider_output`   | Yes       | Stage 3, per table      | Provider request id(s), raw provider payload, page range/table id, timing, retry count.                                                                 |
+| `table_map`         | Yes       | End of Stage 2, per run | Table list with page/bounds identifiers, detection confidence/warnings, doc-type assumption.                                                            |
+| `debug`             | No        | Any stage, as needed    | Redacted diagnostics snapshot (stage inputs/outputs, config flags, timing).                                                                             |
+| `validation_report` | Yes       | End of Stage 4, per run | Schema validation outcome, row counts per table, unmapped/flagged label counts, validation warnings, cross-check discrepancies (company accounts only). |

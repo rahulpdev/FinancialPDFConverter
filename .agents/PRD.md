@@ -79,24 +79,24 @@ As a client engineering team I want to submit a financial PDF file or URL and re
 
 **Functional requirements**
 
-- A1 Provide an authenticated POST endpoint to ingest PDFs.
+- A1 Provide an authenticated POST endpoint to ingest PDFs and publish interactive API documentation for pilot integrators.
 - A2 Accept either multipart upload or a file URL.
 - A3 Validate input \- File must be PDF \- Size must be within configured limit 20 MB for pilot API P95 target \- Reject encrypted or password-protected PDFs with a clear error
 - A4 Register a document record with \- organisation_id \- optional user_id nullable \- document_type_hint \- customer_reference optional \- source channel api or portal \- content hash \- environment sandbox or production \- size_bytes \- filename \- created timestamps
-- A5 Return response within P95 500 ms for valid requests \- document_id \- queued status \- validation warnings if any
-- A6 Enqueue the extraction job respecting per-organisation concurrency limits.
+- A5 Return response within P95 500 ms for valid requests \- document_id \- status (`queued` or `succeeded` on cache hit) \- validation warnings if any
+- A6 If a document with the same content hash already has a `succeeded` extraction within the active retention window for the organisation, return the existing `document_id`; otherwise enqueue the extraction job respecting per-organisation concurrency limits.
 - A7 Status transitions must be explicit: `queued`, `processing`, `succeeded`, `failed`, `expired`.
 
 **Error handling**
 
-- A8 4xx errors for user faults \- 400 invalid file or size \- 401 or 403 auth failure \- 409 duplicate hash optional behaviour documented \- 429 per-organisation concurrency/rate limits exceeded
+- A8 4xx errors for user faults \- 400 invalid file or size \- 401 or 403 auth failure \- 409 duplicate hash while an active extraction exists (optional; documented) \- 429 per-organisation concurrency/rate limits exceeded
 - A9 5xx errors for system faults \- return generic message \- log internal diagnostics with correlation id
 
 **Acceptance criteria**
 
-- A10 For a valid PDF and API key, the API responds within 500 ms P95 with a document_id and queued status.
+- A10 For a valid PDF and API key, the API responds within 500 ms P95 with a document_id and `queued` status (or `succeeded` on cache hit).
 - A11 For non-PDF or encrypted PDF input the API returns 4xx with human-readable actionable guidance.
-- A12 Accepted documents create records in database with correct organisation_id and metadata.
+- A12 Accepted documents create records in database with correct organisation_id and metadata unless served from cache.
 - A13 Per-organisation concurrency limits enforced (at most one active extraction per organisation), additional jobs queued.
 - A14 No original PDF is stored in durable storage.
 
@@ -186,7 +186,7 @@ As the system I want to identify relevant table regions so that only relevant co
 
 **Functional requirements**
 
-- E1 Identify candidate table regions for \- income statement \- balance sheet \- cash flow \- bank transaction tables
+- E1 Identify candidate table regions for \- income statement \- balance sheet \- cash flow \- comprehensive income \- shareholder equity changes \- bank transaction tables
 - E2 Support tables spanning pages.
 - E3 Support irregular or borderless tables.
 - E4 Produce a table map \- page number \- bounding boxes or selectors compatible with the extraction provider \- table id
@@ -200,7 +200,7 @@ As the system I want to identify relevant table regions so that only relevant co
 
 Validation notes \- QA validates detection outputs on the golden dataset.
 
-Analytics and metrics \- Metric extraction_stage2_duration_ms and extraction_stage2_failure with failure_type.
+Analytics and metrics \- Metric extraction_stage2_duration_ms and extraction_stage2_failure with failure_type. \- Metric pages_sent_to_llmwhisperer_ratio target ≤5% of total PDF pages.
 
 ### 6.6 Feature F - LLMWhisperer table extraction (Extraction stage 3)
 
@@ -242,13 +242,13 @@ As a downstream consumer I want extracted data normalized into canonical schemas
 - G2 Validate and enforce all structured outputs using Pydantic schemas, ensuring type safety, required fields and numeric precision
 - G3 Canonical schemas \- company accounts schema (e.g. income statement, balance sheet, cash flow by period) \- bank statement schema (e.g. transactions with date, description, amount, currency)
 - G4 Normalize formats \- dates \- currency codes at metadata level \- numeric parsing as decimal fixed precision
-- G5 Provide per-row confidence and mapping notes.
+- G5 Provide per-row confidence and mapping notes, including deterministic cross-check outcomes for company accounts using format-specific rulesets.
 - G6 Handle unknown labels \- preserve source label \- map to canonical when confident \- flag unmapped labels for inspection
 
 **Acceptance criteria**
 
 - G7 All semi-structured JSON outputs validate against canonical Pydantic schemas.
-- G8 Schema validation failures are logged with clear diagnostics. Document marked as failed or partially successful.
+- G8 Schema validation outcomes are logged with clear diagnostics and written to a `validation_report` raw artefact; failures mark the document failed or partially successful.
 - G9 All financial amounts are stored and returned using decimal fixed precision representations.
 
 Validation notes \- QA runs schema validation tests on golden dataset \- Logs record specific validation errors that include distinguishing Pydantic AI translation and Pydantic validation failures.
@@ -363,13 +363,27 @@ Validation notes \- QA runs time-travel tests with short retention in non-prod.
 
 Analytics and metrics \- Metric retention_deletions_count and retention_deletion_error_count.
 
+### 6.13 Feature M - Hierarchical statement row attributes
+
+**User story**
+
+As a downstream consumer I want extracted statement rows to include hierarchy information so that I can reconstruct statement structure and distinguish headers, subtotals, and line items.
+
+**Functional requirements**
+
+- M1 Extend company accounts canonical schema rows to include `indent_level`, `row_type` and parent relationship (when applicable), without changing pipeline stage boundaries.
+
+**Acceptance criteria**
+
+- M2 For company accounts, extracted rows preserve statement order and include hierarchy fields sufficient to render the original nested layout.
+
 ## 7 User flows & UX notes
 
 ### 7.1 API ingestion flow
 
 1. Client system calls endpoint (Feature A) with PDF and metadata.
 2. API validates auth, file type, size, and rejects encrypted/password-protected PDFs with error.
-3. API creates document record with queued status, enqueues extraction job, and returns `document_id` within performance targets.
+3. API creates document record with queued status (or returns a cache-hit `document_id`), enqueues extraction job when needed, and responds within performance targets.
 4. System processes document asynchronously through five extraction stages and updates status transitions.
 5. If processing is interrupted, job may restart rather than resume.
 6. Client polls status via results endpoint; on completion, status transitions to success or failed (Feature I).
@@ -553,6 +567,7 @@ The following items are explicitly out of scope for pilot delivery but should be
 
 - Extended document types beyond company accounts and bank statements.
 - Resumable or long-running extraction jobs across client refreshes.
+- Job cancellation for in-flight extractions.
 - Advanced analytics, financial modelling, or downstream decisioning modules.
 - Per-user role management, SSO, or enterprise access controls.
 - Long-term data retention or archival strategies beyond the fixed pilot window.
