@@ -215,7 +215,7 @@ As the system I want to extract structured table data using LLMWhisperer so that
 - F2 Enable only the LLMWhisperer implementation for the pilot.
 - F3 No open-source fallback extraction provider is permitted in the pilot.
 - F4 For each candidate table region \- call LLMWhisperer \- store raw LLMWhisperer output as a raw artefact associated to the extraction run
-- F5 The system must be parallel-ready \- allow multiple requests to be handled efficiently under pilot load \- enforce at most one active extraction per organisation via FIFO queue
+- F5 The system must be parallel-ready \- LLMWhisperer calls for multiple candidate table regions within a single document must execute concurrently \- allow multiple documents to be processed efficiently across organisations under pilot load \- enforce at most one active extraction per organisation via FIFO queue
 - F6 Not real-time \- jobs are batch style \- portal can poll status
 - F7 If processing is interrupted by client actions such as refresh, the client restarts and does not attempt to resume partial work.
 - F8 Support retries for transient failures and mark as failed after configurable max attempts.
@@ -569,6 +569,7 @@ The following items are explicitly out of scope for pilot delivery but should be
 - Extended document types beyond company accounts and bank statements.
 - Resumable or long-running extraction jobs across client refreshes.
 - Job cancellation for in-flight extractions.
+- LLMWhisperer provider-call-level result caching by content hash.
 - Multi-period consolidated accounts for company accounts across separately-uploaded documents for the same entity within an organisation, aligning line items across periods using fuzzy matching.
 - Multi-period statement tracking for bank statements across separately-uploaded documents for the same account or entity within an organisation.
 - Advanced analytics, financial modelling, or downstream decisioning modules.

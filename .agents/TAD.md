@@ -235,8 +235,9 @@ Date 2025-01-17
 ### 7.4 Stage 3 — Table extraction (LLMWhisperer only)
 
 - Provider interface exists; only LLMWhisperer implementation enabled.
+- LLMWhisperer calls for all candidate table regions within a single document execute concurrently via an async wrapper around the synchronous SDK (using `asyncio.to_thread` or equivalent thread-pool dispatch); per-document wall-clock time is bounded by the slowest individual call, not the sum of all calls.
 - Call LLMWhisperer per candidate table region; store raw provider outputs in `raw_artefacts`.
-- Retry policy: bounded retries for transient failures; stable error codes.
+- Retry policy: bounded retries with exponential backoff for transient failures; stable error codes.
 - Aggregate per-table quality into document-level quality score.
 
 ### 7.5 Stage 4 — Normalisation and schema mapping
