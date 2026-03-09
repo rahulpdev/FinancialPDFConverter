@@ -152,7 +152,7 @@ Date 2025-01-17
 
 - Stable error code format: `STAGE{N}_{CATEGORY}_{DETAIL}` (e.g., `STAGE3_PROVIDER_TIMEOUT`).
 - Response body includes:
-  - `error_code`, `message`, `correlation_id`, `retryable`.
+  - `error_code`, `message`, `request_id`, `extraction_run_id`, `retryable`.
 - Logs include full diagnostics; responses remain non-sensitive.
 
 ## 6 Data model
@@ -205,7 +205,7 @@ Date 2025-01-17
 
 - `audit_events`
   - `id`, `organisation_id`, `document_id` (nullable), `event_type`, `actor_type` (system|portal|api)
-  - `correlation_id`, `payload_json`, `created_at`.
+  - `extraction_run_id` (nullable), `payload_json`, `created_at`.
 
 ### 6.2 Row-Level Security
 
@@ -239,7 +239,7 @@ Date 2025-01-17
 - Capture PDF metadata and QA flags.
 - Determine processing plan (doc type from hint, heuristic validation or warning only).
 - Best-effort inference of entity_name, statement_period_start, statement_period_end and currency for logging and downstream hints; values may be null.
-- Emit `correlation_id` for all subsequent logs.
+- Emit `extraction_run_id` for all subsequent logs.
 
 ### 7.3 Stage 2 — Table detection
 
@@ -309,7 +309,7 @@ Date 2025-01-17
 
 - Primary operational interface (AI-optimized): health/readiness checks via HTTP endpoints + structured JSON logs with correlation IDs; alerts are built on these signals.
 - Health/readiness checks cover at minimum: API/service liveness, database connectivity, and dependency readiness for extraction.
-- Structured JSON logs with `correlation_id`, `organisation_id`, `document_id`, `stage`, `duration_ms`, `error_code`.
+- Structured JSON logs with `request_id` (from `X-Request-ID`), `extraction_run_id`, `organisation_id`, `document_id`, `stage`, `duration_ms`, `error_code`.
 - Secondary operational interface (ad-hoc): Supabase console + documented SQL queries for investigation and pilot reporting (not primary system health).
 - Metrics:
   - PDFs ingested, stage durations, success/failure rate, retry counts, retention deletions.

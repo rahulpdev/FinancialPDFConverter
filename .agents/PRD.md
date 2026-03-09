@@ -91,7 +91,7 @@ As a client engineering team I want to submit a financial PDF file or URL and re
 **Error handling**
 
 - A8 4xx errors for user faults \- 400 invalid file or size \- 401 or 403 auth failure \- 409 duplicate hash while an active extraction exists (optional; documented) \- 429 per-organisation concurrency/rate limits exceeded
-- A9 5xx errors for system faults \- return generic message \- log internal diagnostics with correlation id
+- A9 5xx errors for system faults \- return generic message \- log internal diagnostics with `request_id` and `extraction_run_id`
 
 **Acceptance criteria**
 
@@ -101,7 +101,7 @@ As a client engineering team I want to submit a financial PDF file or URL and re
 - A13 Per-organisation concurrency limits enforced (at most one active extraction per organisation), additional jobs queued.
 - A14 No original PDF is stored in durable storage.
 
-Validation notes \- QA verifies response time and status transitions. \- Logs include request id, organisation_id, document_id, validation result, stage timings.
+Validation notes \- QA verifies response time and status transitions. \- Logs include `request_id` (from `X-Request-ID`), `extraction_run_id`, organisation_id, document_id, validation result, stage timings.
 
 Analytics and metrics \- Event document_ingested and document_ingest_rejected with fields: organisation_id, channel, size_bytes, document_type_hint. \- Metric ingestion_p95_ms.
 
