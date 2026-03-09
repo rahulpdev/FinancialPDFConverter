@@ -58,6 +58,7 @@ Needs \- Clear API contracts, stable auth pattern, predictable status transition
 - API ingestion and results retrieval.
 - Thin web portal for pilot upload and viewing over the same API.
 - Five-stage extraction engine implemented as five co-equal product features.
+- Separate API service and background worker process for batch extraction.
 - Canonical schema mapping for bank statements and company accounts.
 - Dual-path RAG storage of structured rows and semantic chunks.
 - Export formats JSON via API and CSV via portal.
