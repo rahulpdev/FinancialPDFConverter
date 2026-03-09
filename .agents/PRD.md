@@ -549,10 +549,10 @@ Each pilot goal is validated through explicit, predefined mechanisms. Not all go
 
 **Pilot monitoring flow**
 
-1. Project owner accesses Supabase console.
-2. Runs prepared queries against extraction and operation tables.
-3. Reviews volumes, success/failure rates, and latency distributions.
-4. Compares observed metrics against success targets.
+1. Primary system health is monitored via health/readiness checks and structured JSON logs with correlation IDs, with alerts derived from these signals.
+2. On alert or anomaly, use correlation IDs to trace end-to-end execution in logs.
+3. For ad-hoc reporting and investigation (secondary interface), project owner accesses Supabase console.
+4. Runs documented SQL queries against extraction and operation tables.
 5. Records findings in pilot progress summaries.
 
 **Failure investigation flow**

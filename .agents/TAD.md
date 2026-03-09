@@ -307,7 +307,10 @@ Date 2025-01-17
 
 ### 8.4 Observability
 
-- Structured logs with `correlation_id`, `organisation_id`, `document_id`, `stage`, `duration_ms`, `error_code`.
+- Primary operational interface (AI-optimized): health/readiness checks via HTTP endpoints + structured JSON logs with correlation IDs; alerts are built on these signals.
+- Health/readiness checks cover at minimum: API/service liveness, database connectivity, and dependency readiness for extraction.
+- Structured JSON logs with `correlation_id`, `organisation_id`, `document_id`, `stage`, `duration_ms`, `error_code`.
+- Secondary operational interface (ad-hoc): Supabase console + documented SQL queries for investigation and pilot reporting (not primary system health).
 - Metrics:
   - PDFs ingested, stage durations, success/failure rate, retry counts, retention deletions.
 - Audit events:
