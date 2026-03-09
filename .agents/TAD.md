@@ -80,18 +80,30 @@ Date 2025-01-17
 
 ### 4.2 Vertical-slice repository structure
 
-- `src/auth/` (API keys, portal auth, middleware)
-- `src/ingestion/` (upload/url ingestion, validation, metadata)
-- `src/pipeline/` (job scheduler, per-org FIFO, status transitions)
-- `src/extraction_stage1/` (input discovery + run registration)
-- `src/extraction_stage2/` (table detection and table-map)
-- `src/extraction_stage3/` (LLMWhisperer extraction, retries, raw artefacts)
-- `src/extraction_stage4/` (dual-method translation, discrepancy comparison, schema mapping, Pydantic validation)
-- `src/extraction_stage5/` (dual-path persistence, delivery artefact prep)
-- `src/results/` (results API, CSV generation, HTML view models)
-- `src/portal/` (minimal UI pages, server handlers)
-- `src/ops/` (retention, rate limits, kill-switch, health checks)
-- `src/shared/` (db, config, logging, error codes, utilities)
+- `app/core/` (universal infrastructure)
+  - Configuration
+  - Database connection/session management
+  - Logging setup
+  - Middleware (request logging, rate limiting primitives)
+  - Exception base classes and canonical error primitives
+  - Global dependencies
+  - Application lifecycle helpers (startup/shutdown)
+  - Health checks
+  - Kill switch / feature flag client (client/config in core; checks executed in feature slices)
+  - Retention job runner infrastructure (universal scheduling/runner; retention business logic stays with the owning slice)
+- `app/shared/` (cross-feature utilities only; not universal infrastructure)
+  - Reusable, non-foundational helpers used across multiple slices (e.g., base models/mixins, common schemas, small utils)
+- Feature slices (product code)
+  - `app/auth/` (API keys, portal auth, auth middleware)
+  - `app/ingestion/` (upload/url ingestion, validation, metadata)
+  - `app/pipeline/` (job scheduler, per-org FIFO, status transitions)
+  - `app/extraction_stage1/` (input discovery + run registration)
+  - `app/extraction_stage2/` (table detection and table-map)
+  - `app/extraction_stage3/` (LLMWhisperer extraction, retries, raw artefacts)
+  - `app/extraction_stage4/` (dual-method translation, discrepancy comparison, schema mapping, Pydantic validation)
+  - `app/extraction_stage5/` (dual-path persistence, delivery artefact prep)
+  - `app/results/` (results API, CSV generation, HTML view models)
+  - `app/portal/` (minimal UI pages, server handlers)
 
 ### 4.3 Data flow
 
@@ -303,7 +315,7 @@ Date 2025-01-17
 
 ### 8.5 Maintainability
 
-- Vertical slices; minimal coupling; shared primitives in `src/shared` only.
+- Vertical slices; minimal coupling; universal infrastructure in `app/core/`, cross-feature utilities in `app/shared/`.
 - One-engineer operability: runbooks + clear local dev setup.
 
 ### 8.6 Accessibility
