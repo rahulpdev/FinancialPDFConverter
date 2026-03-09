@@ -3,7 +3,7 @@ name = "vsa-fastapi-project"
 version = "0.1.0"
 description = "FastAPI + PostgreSQL starter with vertical slice architecture, optimized for AI coding"
 readme = "README.md"
-requires-python = ">=3.11"
+requires-python = ">=3.12"
 dependencies = [
     "fastapi>=0.133.1",
     "pydantic-settings>=2.13.1",
@@ -13,7 +13,7 @@ dependencies = [
 ]
 
 [tool.ruff]
-target-version = "py311"
+target-version = "py312"
 line-length = 88
 indent-width = 4
 
@@ -47,7 +47,7 @@ line-ending = "auto"
 docstring-code-format = true
 
 [tool.mypy]
-python_version = "3.11"
+python_version = "3.12"
 
 # Strict mode — enables all optional error-checking flags
 strict = true
@@ -70,7 +70,7 @@ testpaths = ["tests", "app"]
 addopts = "--cov=main --cov=app --cov-report=term-missing --tb=short"
 
 [tool.pyright]
-pythonVersion = "3.11"
+pythonVersion = "3.12"
 
 # Strict mode — enables every diagnostic rule Pyright exposes
 typeCheckingMode = "strict"
