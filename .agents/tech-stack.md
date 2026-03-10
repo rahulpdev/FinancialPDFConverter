@@ -1,6 +1,6 @@
 # Tech Stack
 
-Minimum set of tech stack decisions to setup an AI-optimized codebase for this project.
+Minimum set of tech stack decisions to enable setup of AI-optimized codebase for this project.
 
 ## Backend
 
@@ -10,7 +10,7 @@ Minimum set of tech stack decisions to setup an AI-optimized codebase for this p
 - Backend lint/format: Ruff
 - Backend type checking: MyPy + Pyright
 - Backend tests: pytest + pytest-cov + pytest-asyncio
-- Backend structured logging: structlog (JSON + `request_id` + `extraction_run_id`)
+- Backend structured logging: structlog (JSON). Required fields: `request_id` (from `X-Request-ID`), `extraction_run_id`, `organisation_id`, `document_id`, `stage`, `duration_ms`, `error_code`.
 
 ## Frontend
 
@@ -30,6 +30,7 @@ Minimum set of tech stack decisions to setup an AI-optimized codebase for this p
 - Provider: Supabase Postgres (managed)
 - Tenant isolation: Postgres RLS enforced by `organisation_id`
 - DB access layer: SQLAlchemy (async) + asyncpg
+- Extensions: `pgvector` enabled
 - Migrations: Supabase CLI migrations
 - Local dev DB strategy: Supabase remote (dev project)
 
@@ -42,3 +43,4 @@ Minimum set of tech stack decisions to setup an AI-optimized codebase for this p
 
 - Primary operational interface: health endpoints + structured JSON logs + alerts
 - Secondary operational interface: Supabase console + documented SQL queries
+- Health endpoints: liveness + db + readiness
